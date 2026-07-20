@@ -1,0 +1,31 @@
+# Volt Rewrite Task List
+
+- [x] Core Infrastructure
+    - [x] Create `VoltTheme` design system
+    - [x] Set up Repositories (Auth, Grid, AI)
+    - [x] Set up ViewModels (Home, User)
+- [x] UI Overhaul
+    - [x] Redesign `MainLayout` with Volt navigation
+    - [x] Implement `VoltDashboard` (HomeScreen redesign)
+    - [x] Implement `ChronosTimeline` (Schedule redesign)
+    - [x] Add `GridPulse` visualization
+    - [x] Redesign `UtilityHub` (ToolsScreen redesign)
+    - [x] Redesign `PulseCenter` (AlertsScreen redesign)
+    - [x] Redesign `KnowledgeBase` (InfoScreen redesign)
+    - [x] Redesign `AccessKey` (AuthScreen redesign)
+- [x] Feature Refinement
+    - [x] Integrate AI Grid Forecast
+    - [x] Update Battery/Torch integration in Utility Hub
+    - [x] Wire Home Screen Quick Actions (Timeline, Report)
+    - [x] Implement logout and settings flow
+    - [x] Implement Notification/Favorite persistence
+    - [x] Add Grid Node search and discovery
+    - [x] Add Technical Resource link handlers
+- [x] Cleanup & Verification
+    - [x] Remove legacy theme/styles
+    - [x] Final UI/UX polish
+- [x] Volt Atlas (Map Feature)
+    - [x] Update `GridRepository` & `HomeViewModel` for all zones
+    - [x] Implement `AtlasScreen` with `flutter_map`
+    - [x] Integrate Atlas into `MainLayout` navigation
+    - [x] Add tap-to-inspect zone details
