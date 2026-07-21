@@ -32,12 +32,25 @@ class SimulatedZoneStatus {
 /// into functions/index.js once Blaze is enabled; the client-facing method
 /// signatures here are intentionally identical to that version so the
 /// swap is a find-and-replace of this file, nothing else.
+///
+/// FREE-TIER KEY NOTE: since April 2026, Google's free API tier only
+/// covers Flash-class models — Pro-series models (e.g. gemini-3.1-pro)
+/// are paid-only now. All tiers below are Flash-class so a free key works
+/// end to end. Free tier is also rate-limited (roughly 10-15 requests per
+/// minute, ~1,500 per day for Flash as of mid-2026 — check the live figures
+/// for your project in AI Studio, Google adjusts these). One
+/// simulateNationalGrid() call covers all 48 zones in a single request, so
+/// normal usage of this app stays well within that. Avoid adding a loop
+/// that calls inferStatusForCoordinate() per-zone instead — that would
+/// burn through the per-minute quota fast.
 class AIService {
   static const String _apiKey = String.fromEnvironment('GEMINI_API_KEY');
 
+  // Flash-class only — required for free-tier API keys (Pro models are
+  // paid-only as of April 2026).
   final List<String> _modelTiers = [
     'gemini-3.5-flash',
-    'gemini-3.1-pro',
+    'gemini-3.1-flash',
     'gemini-3.1-flash-lite',
   ];
 
