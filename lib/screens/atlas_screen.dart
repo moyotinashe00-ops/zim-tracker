@@ -158,6 +158,11 @@ class _AtlasScreenState extends State<AtlasScreen> with SingleTickerProviderStat
                       Text('STRATEGIC SUMMARY', style: VoltTheme.dataStyle.copyWith(fontSize: 8, color: VoltTheme.amber)),
                     ],
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'AI-SIMULATED ESTIMATE \u00b7 NOT LIVE ZETDC DATA',
+                    style: VoltTheme.dataStyle.copyWith(fontSize: 7, color: VoltTheme.textDim),
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     _aiSummary,

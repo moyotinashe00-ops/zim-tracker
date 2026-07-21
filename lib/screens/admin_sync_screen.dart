@@ -85,15 +85,36 @@ class _AdminSyncScreenState extends State<AdminSyncScreen> {
 
   void _handleSeed() async {
     setState(() => _isSeeding = true);
-    await _seedService.seedAllData();
-    if (mounted) {
-      setState(() => _isSeeding = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: VoltTheme.neonGreen,
-          content: Text('NATIONAL DATABASE INITIALIZED', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-        ),
-      );
+    try {
+      final nodeCount = await _seedService.seedStructuralZones();
+
+      // Pull the zones we just wrote and run one national AI simulation
+      // sweep so every node gets a status + ETA in a single pass.
+      final zones = await _firestoreService.getGridZones().first;
+      final simResults = await _aiService.simulateNationalGrid(zones);
+      for (final entry in simResults.entries) {
+        await _firestoreService.updateZoneSimulation(entry.key, entry.value.status, entry.value.etaMinutes);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: VoltTheme.neonGreen,
+            content: Text(
+              simResults.isEmpty
+                  ? 'NATIONAL GRID SEEDED: $nodeCount NODES (AI SIMULATION UNAVAILABLE \u2014 CHECK KEY)'
+                  : 'NATIONAL GRID SIMULATED: $nodeCount NODES ACROSS ZIMBABWE',
+              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('SEED ERROR: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isSeeding = false);
     }
   }
 
@@ -201,7 +222,7 @@ class _AdminSyncScreenState extends State<AdminSyncScreen> {
                 icon: _isSeeding 
                     ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(LucideIcons.database),
-                label: Text(_isSeeding ? 'INITIALIZING...' : 'RESTORE NATIONAL NODES'),
+                label: Text(_isSeeding ? 'SIMULATING GRID...' : 'SIMULATE NATIONAL GRID'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: VoltTheme.cyberBlue,
                   side: const BorderSide(color: VoltTheme.cyberBlue),
