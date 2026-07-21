@@ -130,7 +130,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
             value: active,
             onChanged: (v) => onTap(),
             activeTrackColor: VoltTheme.cyberBlue.withValues(alpha: 0.3),
-            activeColor: VoltTheme.cyberBlue,
+            activeThumbColor: VoltTheme.cyberBlue,
           ),
         ],
       ),
@@ -154,9 +154,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
             TextField(
               autofocus: true,
               style: VoltTheme.dataStyle.copyWith(color: Colors.white),
-              onChanged: (v) => vm.search(v),
+              onChanged: (v) => vm.searchGlobal(v),
               decoration: VoltTheme.voltInputDecoration(
-                hintText: 'SEARCH COMMUNITY...',
+                hintText: 'GLOBAL GRID DISCOVERY...',
                 prefixIcon: LucideIcons.search,
               ),
             ),
@@ -168,7 +168,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                     return const Center(child: CircularProgressIndicator(color: VoltTheme.cyberBlue));
                   }
                   if (vm.searchResults.isEmpty) {
-                    return Center(child: Text('NO NODES FOUND', style: VoltTheme.dataStyle.copyWith(color: VoltTheme.textDim)));
+                    return Center(child: Text('ENTER ANY POINT IN ZIMBABWE', style: VoltTheme.dataStyle.copyWith(color: VoltTheme.textDim)));
                   }
                   return ListView.builder(
                     itemCount: vm.searchResults.length,
@@ -177,9 +177,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
                       return ListTile(
                         title: Text(zone.name, style: const TextStyle(color: Colors.white)),
                         subtitle: Text(zone.region, style: const TextStyle(color: VoltTheme.textMuted, fontSize: 10)),
-                        trailing: const Icon(LucideIcons.plus, color: VoltTheme.cyberBlue, size: 18),
+                        trailing: const Icon(LucideIcons.globe, color: VoltTheme.cyberBlue, size: 18),
                         onTap: () {
-                          userService.toggleNotification(zone.id);
+                          vm.selectAndRegisterZone(zone);
                           Navigator.pop(ctx);
                         },
                       );

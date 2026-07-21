@@ -30,35 +30,39 @@ class _GridPulseWidgetState extends State<GridPulseWidget> with SingleTickerProv
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 120,
+      height: 110, // Slightly reduced height
       width: double.infinity,
       decoration: VoltTheme.glassDecoration,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min, // Constrain height
               children: [
                 Text(
                   'NATIONAL GRID PULSE',
-                  style: VoltTheme.dataStyle.copyWith(fontSize: 10, letterSpacing: 2),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '1,240 MW',
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                  ),
+                  style: VoltTheme.dataStyle.copyWith(fontSize: 8, letterSpacing: 2),
                 ),
                 const SizedBox(height: 4),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '1,240 MW',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 2),
                 Text(
                   'LOAD SHEDDING STAGE 2',
                   style: VoltTheme.dataStyle.copyWith(
                     color: VoltTheme.neonGreen,
-                    fontSize: 9,
+                    fontSize: 8,
                   ),
                 ),
               ],

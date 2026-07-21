@@ -4,6 +4,7 @@ import 'package:zim_tracker/services/ai_service.dart';
 import 'package:zim_tracker/services/firestore_service.dart';
 import 'package:zim_tracker/theme/volt_theme.dart';
 import 'package:zim_tracker/models/schedule_slot.dart';
+import 'package:zim_tracker/services/seed_service.dart';
 
 class AdminSyncScreen extends StatefulWidget {
   const AdminSyncScreen({super.key});
@@ -16,7 +17,9 @@ class _AdminSyncScreenState extends State<AdminSyncScreen> {
   final TextEditingController _noticeController = TextEditingController();
   final AIService _aiService = AIService();
   final FirestoreService _firestoreService = FirestoreService();
+  final SeedService _seedService = SeedService();
   bool _isProcessing = false;
+  bool _isSeeding = false;
 
   void _handleSync() async {
     if (_noticeController.text.isEmpty) return;
@@ -77,6 +80,42 @@ class _AdminSyncScreenState extends State<AdminSyncScreen> {
       }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  void _handleSeed() async {
+    setState(() => _isSeeding = true);
+    await _seedService.seedAllData();
+    if (mounted) {
+      setState(() => _isSeeding = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: VoltTheme.neonGreen,
+          content: Text('NATIONAL DATABASE INITIALIZED', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+        ),
+      );
+    }
+  }
+
+  void _handleWipe() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: VoltTheme.slate,
+        title: Text('WIPE REGISTRY?', style: VoltTheme.dataStyle.copyWith(color: VoltTheme.neonRed)),
+        content: const Text('This will decommission all nodes from the national grid database.', style: TextStyle(color: VoltTheme.textMuted)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('DECOMMISSION', style: TextStyle(color: VoltTheme.neonRed))),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await _firestoreService.wipeAllNodes();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('REGISTRY WIPED: GRID DATABASE EMPTY')));
+      }
     }
   }
 
@@ -144,6 +183,39 @@ class _AdminSyncScreenState extends State<AdminSyncScreen> {
                   backgroundColor: VoltTheme.cyberBlue,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Divider(color: Colors.white10),
+            const SizedBox(height: 24),
+            Text(
+              'RECOVERY PROTOCOL',
+              style: VoltTheme.dataStyle.copyWith(fontSize: 10, color: VoltTheme.textMuted),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: _isSeeding ? null : _handleSeed,
+                icon: _isSeeding 
+                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(LucideIcons.database),
+                label: Text(_isSeeding ? 'INITIALIZING...' : 'RESTORE NATIONAL NODES'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: VoltTheme.cyberBlue,
+                  side: const BorderSide(color: VoltTheme.cyberBlue),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: TextButton(
+                onPressed: _handleWipe,
+                child: Text('DECOMMISSION ALL NODES', style: VoltTheme.dataStyle.copyWith(fontSize: 8, color: VoltTheme.neonRed)),
               ),
             ),
           ],

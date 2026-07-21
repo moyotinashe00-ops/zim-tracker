@@ -247,7 +247,7 @@ class HomeScreen extends StatelessWidget {
 
   Widget _buildMiniAtlas(BuildContext context, HomeViewModel vm) {
     return Container(
-      height: 200,
+      height: 220,
       width: double.infinity,
       decoration: VoltTheme.glassDecoration,
       clipBehavior: Clip.antiAlias,
@@ -259,8 +259,8 @@ class HomeScreen extends StatelessWidget {
               final zones = snapshot.data ?? [];
               return FlutterMap(
                 options: const MapOptions(
-                  initialCenter: LatLng(-17.8216, 31.0492), // Default to Harare
-                  initialZoom: 11.0,
+                  initialCenter: LatLng(-18.8792, 29.8297), // Center of Zimbabwe for national view
+                  initialZoom: 6.0, // Zoomed out to show the whole country
                   interactionOptions: InteractionOptions(flags: InteractiveFlag.none),
                 ),
                 children: [
@@ -271,13 +271,19 @@ class HomeScreen extends StatelessWidget {
                   MarkerLayer(
                     markers: zones.map((z) => Marker(
                       point: LatLng(z.latitude, z.longitude),
-                      width: 20,
-                      height: 20,
+                      width: 15,
+                      height: 15,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: (z.status == PowerStatus.on ? VoltTheme.neonGreen : VoltTheme.neonRed).withValues(alpha: 0.6),
+                          color: (z.status == PowerStatus.on ? VoltTheme.neonGreen : VoltTheme.neonRed),
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 1),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (z.status == PowerStatus.on ? VoltTheme.neonGreen : VoltTheme.neonRed).withValues(alpha: 0.4),
+                              blurRadius: 4,
+                            )
+                          ],
                         ),
                       ),
                     )).toList(),

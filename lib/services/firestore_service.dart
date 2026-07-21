@@ -81,4 +81,11 @@ class FirestoreService {
       'lastUpdated': Timestamp.now(),
     });
   }
+
+  Future<void> wipeAllNodes() async {
+    final snapshot = await _db.collection('zones').get();
+    for (var doc in snapshot.docs) {
+      await doc.reference.delete();
+    }
+  }
 }

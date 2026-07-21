@@ -48,6 +48,17 @@ class GridRepository {
     });
   }
 
+  Future<void> registerDynamicZone(GridZone zone) async {
+    await _firestore.collection('zones').doc(zone.id).set(zone.toMap());
+  }
+
+  Future<void> wipeAllNodes() async {
+    final snapshot = await _firestore.collection('zones').get();
+    for (var doc in snapshot.docs) {
+      await doc.reference.delete();
+    }
+  }
+
   Stream<List<GridZone>> getAllZones() {
     return _firestore
         .collection('zones')

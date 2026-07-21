@@ -1,43 +1,31 @@
-# Volt: Atlas - National Grid Map Implementation Plan
+# Volt: 2026 Model Alignment & Stability Plan
 
-This plan introduces a high-fidelity map feature called **Atlas**, allowing users to visualize the real-time power status across all grid nodes in Zimbabwe.
+This plan updates the **Volt Intelligence** layer to align with the July 2026 Gemini model availability. It removes retired 1.5-series models and implements a more resilient fallback chain using active 3.x generation models.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> The map will use OpenStreetMap tiles via `flutter_map`. This requires an active internet connection to load tiles.
-> Markers will be color-coded: **Neon Green** (Grid Active) and **Neon Red** (Load Shedding).
+> Google has officially retired the **Gemini 1.5** and **2.0** series as of mid-2026. Attempts to call these models now return `404 Not Found`.
+
+> [!NOTE]
+> We are transitioning the fallback hierarchy to use the **Gemini 3.x** family, which is currently the stable production standard.
 
 ## Proposed Changes
 
-### 1. Data Layer Enhancements
-- **[MODIFY] [grid_repository.dart](file:///C:/Users/TINASHE/Documents/StudioProjects/zim_tracker/lib/repositories/grid_repository.dart)**:
-    - Add `Stream<List<GridZone>> getAllZones()` to fetch all available grid nodes.
-- **[MODIFY] [home_view_model.dart](file:///C:/Users/TINASHE/Documents/StudioProjects/zim_tracker/lib/viewmodels/home_view_model.dart)**:
-    - Expose the `allZonesStream` for map consumption.
+### 1. Model Registry Alignment
+- **[MODIFY] [ai_service.dart](file:///C:/Users/TINASHE/Documents/StudioProjects/zim_tracker/lib/services/ai_service.dart)**:
+    - Update `_modelTiers` to include only active 2026 models:
+        1. `gemini-3.5-flash` (Primary)
+        2. `gemini-3.1-pro` (High-Intelligence Fallback)
+        3. `gemini-3.1-flash-lite` (Efficiency Fallback)
+    - Remove retired `gemini-1.5-flash`, `gemini-1.5-flash-8b`, and the experimental `gemini-3.5-flash-lite`.
 
-### 2. New Screen: Volt Atlas
-- **[NEW] [atlas_screen.dart](file:///C:/Users/TINASHE/Documents/StudioProjects/zim_tracker/lib/screens/atlas_screen.dart)**:
-    - Implement a full-screen interactive map using `flutter_map`.
-    - Plot custom "Volt" markers for every grid zone.
-    - Add an "Info Overlay" that appears when a marker is tapped, showing current status and time until restoration/cut.
-    - Implement a "Locate Me" button to zoom into the user's current area.
-
-### 3. UI Integration
-- **[MODIFY] [main_layout.dart](file:///C:/Users/TINASHE/Documents/StudioProjects/zim_tracker/lib/screens/main_layout.dart)**:
-    - Add "ATLAS" as a new tab or replace the "INFO" tab (as Knowledge Base info can be integrated elsewhere).
-    - Alternatively, add a prominent "Open Atlas" button to the Dashboard header.
-    - *Decision*: We will replace the "INFO" tab in the bottom navigation with "ATLAS" to give it high visibility, moving the Knowledge Base into a sub-menu or a section in the Atlas screen.
-
-### 4. Styling
-- Custom Map Theme: Apply a dark/midnight tile filter if possible, or use a high-contrast dark tile set to match the **Volt** aesthetic.
+### 2. Enhanced 503/429 Mitigation
+- Update `_executeWithResilience` to handle the `503 Service Unavailable` error more aggressively by immediately stepping down the model tier, even before rotating API keys, as 503 usually indicates model-specific load rather than account-specific limits.
 
 ## Verification Plan
 
-### Automated Tests
-- Verify `getAllZones` stream emits correctly when data changes in Firestore.
-
 ### Manual Verification
-- Test map panning and zooming across Zimbabwe.
-- Verify marker color correctly reflects the `status` field in Firestore.
-- Ensure the Info Overlay displays the correct `GridZone` data upon tapping a marker.
+- Restart the app and trigger a "National Intelligence Sweep".
+- Confirm in logs that the app no longer attempts to call the retired 1.5 models.
+- Verify that if `gemini-3.5-flash` returns a 503, the system successfully engages `gemini-3.1-pro`.
