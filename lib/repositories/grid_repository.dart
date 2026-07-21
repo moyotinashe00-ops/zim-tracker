@@ -48,6 +48,18 @@ class GridRepository {
     });
   }
 
+  /// Writes an AI-simulated status plus an optional restoration ETA in one
+  /// update, so a zone that's OFF also shows when it's expected back.
+  Future<void> updateZoneSimulation(String zoneId, PowerStatus status, int? etaMinutes) async {
+    await _firestore.collection('zones').doc(zoneId).update({
+      'status': status == PowerStatus.on ? 'ON' : 'OFF',
+      'estimatedRestoration': etaMinutes != null
+          ? Timestamp.fromDate(DateTime.now().add(Duration(minutes: etaMinutes)))
+          : null,
+      'lastUpdated': FieldValue.serverTimestamp(),
+    });
+  }
+
   Future<void> registerDynamicZone(GridZone zone) async {
     await _firestore.collection('zones').doc(zone.id).set(zone.toMap());
   }

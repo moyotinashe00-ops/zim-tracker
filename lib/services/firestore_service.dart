@@ -82,6 +82,17 @@ class FirestoreService {
     });
   }
 
+  /// Writes an AI-simulated status plus an optional restoration ETA in one
+  /// update, matching GridRepository.updateZoneSimulation.
+  Future<void> updateZoneSimulation(String zoneId, PowerStatus status, int? etaMinutes) {
+    return _db.collection('zones').doc(zoneId).update({
+      'status': status == PowerStatus.on ? 'ON' : 'OFF',
+      'estimatedRestoration':
+          etaMinutes != null ? Timestamp.fromDate(DateTime.now().add(Duration(minutes: etaMinutes))) : null,
+      'lastUpdated': Timestamp.now(),
+    });
+  }
+
   Future<void> wipeAllNodes() async {
     final snapshot = await _db.collection('zones').get();
     for (var doc in snapshot.docs) {

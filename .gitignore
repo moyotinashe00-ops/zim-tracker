@@ -44,5 +44,5 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Volt Secrets
-lib/services/ai_service.dart
+# Local-only secrets, never commit the real one
+gemini_config.json

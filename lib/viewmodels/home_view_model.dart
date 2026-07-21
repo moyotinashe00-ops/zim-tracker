@@ -72,10 +72,10 @@ class HomeViewModel extends ChangeNotifier {
         return;
       }
 
-      final results = await _aiService.performNationalIntelligenceSweep(zones);
-      
+      final results = await _aiService.simulateNationalGrid(zones);
+
       for (var entry in results.entries) {
-        await _gridRepository.updateZoneStatus(entry.key, entry.value);
+        await _gridRepository.updateZoneSimulation(entry.key, entry.value.status, entry.value.etaMinutes);
       }
     } catch (e) {
       dev.log('Live Sweep Error', error: e);
