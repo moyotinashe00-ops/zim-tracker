@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:developer' as dev;
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:firebase_ai/firebase_ai.dart';
 import 'package:zim_tracker/models/grid_zone.dart';
 
 /// Simulated status for a single zone, produced by [AIService.simulateNationalGrid].
@@ -10,44 +10,32 @@ class SimulatedZoneStatus {
   SimulatedZoneStatus(this.status, this.etaMinutes);
 }
 
-/// Client-side Volt AI service.
+/// Volt AI service, routed through Firebase AI Logic.
 ///
-/// DELIBERATE, TEMPORARY DESIGN: this calls Gemini directly from the device
-/// instead of through the Cloud Functions backend in /functions. That
-/// backend is fully written and ready to go \u2014 it's on hold only because
-/// enabling it requires upgrading the Firebase project to the Blaze plan.
+/// This calls Gemini via `FirebaseAI.googleAI()` — the Gemini Developer API
+/// backend, which has a free tier and does NOT require the project to be on
+/// the Blaze billing plan. (The alternative, `FirebaseAI.vertexAI()`, does
+/// require Blaze — we're deliberately not using that here.)
 ///
-/// The API key below is injected at build time via --dart-define-from-file
-/// (see gemini_config.json.example at the repo root) and is NEVER committed
-/// to source control. For this to be safe-ish, the key MUST be restricted
-/// in Google Cloud Console (APIs & Services > Credentials) to:
-///   1. API restriction: "Generative Language API" only.
-///   2. Application restriction: Android apps, scoped to this app's
-///      package name + release SHA-1 signing fingerprint (and/or iOS
-///      bundle ID for the iOS build).
-/// Even restricted, a determined attacker can extract the key from a
-/// compiled APK/IPA and use it from an app with the same signing cert on
-/// the same device class \u2014 restrictions reduce blast radius, they don't
-/// eliminate it. Set a daily quota on the key too. Move this logic back
-/// into functions/index.js once Blaze is enabled; the client-facing method
-/// signatures here are intentionally identical to that version so the
-/// swap is a find-and-replace of this file, nothing else.
+/// No API key lives in this app at all. Auth flows through the Firebase
+/// project config already loaded via `firebase_options.dart` /
+/// `Firebase.initializeApp()` in main.dart. This replaces the old
+/// direct-`google_generative_ai`-with-a-raw-key approach (which broke when
+/// Google switched new keys to the `AQ.` Auth-key format in June 2026, and
+/// which risked the key leaking from a decompiled APK/IPA regardless).
 ///
-/// FREE-TIER KEY NOTE: since April 2026, Google's free API tier only
-/// covers Flash-class models — Pro-series models (e.g. gemini-3.1-pro)
-/// are paid-only now. All tiers below are Flash-class so a free key works
-/// end to end. Free tier is also rate-limited (roughly 10-15 requests per
-/// minute, ~1,500 per day for Flash as of mid-2026 — check the live figures
-/// for your project in AI Studio, Google adjusts these). One
-/// simulateNationalGrid() call covers all 48 zones in a single request, so
-/// normal usage of this app stays well within that. Avoid adding a loop
-/// that calls inferStatusForCoordinate() per-zone instead — that would
-/// burn through the per-minute quota fast.
+/// ONE-TIME SETUP REQUIRED (per Firebase project, not per developer):
+/// In the Firebase Console, go to Build > AI Logic, and enable the
+/// "Gemini Developer API" backend for this project if it isn't already.
+/// This is free — separate from enabling Blaze.
+///
+/// Free-tier limits still apply (roughly 10-15 requests/minute, ~1,500/day
+/// for Flash-class models as of mid-2026 — check live figures for your
+/// project in Firebase Console / AI Studio). All model tiers below are
+/// Flash-class for that reason. simulateNationalGrid() covers all zones in
+/// one call, so normal single-user testing stays well within limits. Avoid
+/// adding a loop that calls inferStatusForCoordinate() per-zone instead.
 class AIService {
-  static const String _apiKey = String.fromEnvironment('GEMINI_API_KEY');
-
-  // Flash-class only — required for free-tier API keys (Pro models are
-  // paid-only as of April 2026).
   final List<String> _modelTiers = [
     'gemini-3.5-flash',
     'gemini-3.1-flash',
@@ -58,19 +46,12 @@ class AIService {
   late GenerativeModel _activeModel;
 
   AIService() {
-    if (_apiKey.isEmpty) {
-      dev.log(
-        'VOLT AI: No GEMINI_API_KEY supplied at build time. '
-        'Run with --dart-define-from-file=gemini_config.json. AI features will no-op.',
-      );
-    }
     _initActiveModel();
   }
 
   void _initActiveModel() {
-    _activeModel = GenerativeModel(
+    _activeModel = FirebaseAI.googleAI().generativeModel(
       model: _modelTiers[_currentModelIndex],
-      apiKey: _apiKey,
       generationConfig: GenerationConfig(responseMimeType: 'application/json'),
     );
   }
@@ -87,7 +68,6 @@ class AIService {
 
   /// Ingests raw ZETDC notice text and returns a structured JSON map.
   Future<Map<String, dynamic>?> parseZetdcNotice(String text) async {
-    if (_apiKey.isEmpty) return null;
     final prompt = '''
     Return ONLY a JSON object representing the ZETDC load shedding notice.
     DO NOT include conversational text or markdown.
@@ -114,7 +94,6 @@ class AIService {
 
   /// Generates a predictive forecast for grid stability.
   Future<String> getGridForecast(double generation, double demand, String stage) async {
-    if (_apiKey.isEmpty) return 'AI unavailable \u2014 no key configured for this build.';
     final prompt =
         'Given current generation of ${generation}MW against a demand of ${demand}MW at Stage $stage, '
         'provide a 1-sentence grid stability forecast for a Zimbabwean user. This is a simulation, not live official data.';
@@ -128,7 +107,6 @@ class AIService {
 
   /// Provides a strategic overview of the national grid status.
   Future<String> getMapIntelligenceSummary(List<GridZone> zones) async {
-    if (_apiKey.isEmpty) return 'AI unavailable \u2014 no key configured for this build.';
     final offZones = zones.where((z) => z.status == PowerStatus.off).map((z) => z.name).join(', ');
     final prompt =
         'Analyze these Zimbabwean suburbs currently simulated as without power: $offZones. '
@@ -146,7 +124,7 @@ class AIService {
   /// node in a single call, so the whole country populates consistently
   /// in one pass instead of one request per zone.
   Future<Map<String, SimulatedZoneStatus>> simulateNationalGrid(List<GridZone> zones) async {
-    if (_apiKey.isEmpty || zones.isEmpty) return {};
+    if (zones.isEmpty) return {};
 
     final nodeInfo = zones.map((z) => 'ID: ${z.id}, Name: ${z.name}, Region: ${z.region}').join('\n');
     final prompt = '''
@@ -185,7 +163,6 @@ class AIService {
 
   /// Infers power status for a specific coordinate based on nearby regional data.
   Future<PowerStatus> inferStatusForCoordinate(double lat, double lng) async {
-    if (_apiKey.isEmpty) return PowerStatus.on;
     final prompt =
         'Given a specific location in Zimbabwe at coordinates ($lat, $lng), simulate whether it is '
         'currently LIKELY to have power given typical load shedding patterns. Return ONLY "ON" or "OFF".';
