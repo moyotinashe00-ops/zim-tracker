@@ -22,7 +22,7 @@ class _NodeDef {
 class SeedService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  static const List<_NodeDef> nationalNodes = [
+  static const List<_NodeDef> _nationalNodes = [
     // --- Harare Metro ---
     _NodeDef('harare_cbd', 'Harare CBD', 'Harare', -17.8292, 31.0522, 'H1'),
     _NodeDef('borrowdale', 'Borrowdale', 'Harare', -17.7533, 31.0968, 'H12'),
@@ -105,7 +105,7 @@ class SeedService {
   Future<int> seedStructuralZones() async {
     final batch = _db.batch();
 
-    for (final node in nationalNodes) {
+    for (final node in _nationalNodes) {
       final ref = _db.collection('zones').doc(node.id);
       batch.set(ref, {
         'name': node.name,
@@ -121,11 +121,11 @@ class SeedService {
 
     await batch.commit();
 
-    for (final node in nationalNodes) {
+    for (final node in _nationalNodes) {
       await _seedRotationSchedule(node.id);
     }
 
-    return nationalNodes.length;
+    return _nationalNodes.length;
   }
 
   /// Assigns each node to one of 4 rotation groups (A-D) based on a stable
