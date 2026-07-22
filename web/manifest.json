@@ -1,11 +1,11 @@
 {
-    "name": "zim_tracker",
-    "short_name": "zim_tracker",
+    "name": "ZimTracker - Volt Grid Intelligence",
+    "short_name": "ZimTracker",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#050505",
+    "theme_color": "#050505",
+    "description": "Crowd-sourced load-shedding/power grid tracker for Zimbabwe.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
