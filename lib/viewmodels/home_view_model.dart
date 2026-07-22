@@ -1,15 +1,40 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'dart:developer' as dev;
 import 'package:zim_tracker/repositories/grid_repository.dart';
 import 'package:zim_tracker/models/grid_zone.dart';
 import 'package:zim_tracker/models/outage_report.dart';
 import 'package:zim_tracker/services/ai_service.dart';
+import 'package:zim_tracker/services/live_grid_service.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class HomeViewModel extends ChangeNotifier {
   final GridRepository _gridRepository = GridRepository();
   final AIService _aiService = AIService();
+  final LiveGridService _liveGridService = LiveGridService();
+  Timer? _refreshTimer;
+
+  HomeViewModel() {
+    _bootstrapLiveGrid();
+    // Keep the grid current for as long as the app stays open, without
+    // requiring the user to manually refresh or an admin to re-seed.
+    _refreshTimer = Timer.periodic(const Duration(minutes: 15), (_) => _bootstrapLiveGrid());
+  }
+
+  Future<void> _bootstrapLiveGrid() async {
+    try {
+      await _liveGridService.ensureLiveGridData();
+    } catch (e) {
+      dev.log('VOLT: Live grid bootstrap/refresh failed', error: e);
+    }
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
   
   String _selectedZoneId = 'harare_central';
   String get selectedZoneId => _selectedZoneId;
@@ -66,17 +91,10 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final zones = await _gridRepository.getAllZones().first;
-      if (zones.isEmpty) {
-        dev.log('VOLT AI: Sweep aborted. No registered nodes found in registry.');
-        return;
-      }
-
-      final results = await _aiService.simulateNationalGrid(zones);
-
-      for (var entry in results.entries) {
-        await _gridRepository.updateZoneSimulation(entry.key, entry.value.status, entry.value.etaMinutes);
-      }
+      // forceRefresh: true bypasses the staleness check for an explicit,
+      // user-triggered pull-to-refresh. This also handles first-run
+      // geography population automatically if the registry is empty.
+      await _liveGridService.ensureLiveGridData(forceRefresh: true);
     } catch (e) {
       dev.log('Live Sweep Error', error: e);
       // In a real app, we'd emit an error event or show a SnackBar via a GlobalKey

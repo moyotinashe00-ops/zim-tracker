@@ -4,7 +4,7 @@ import 'package:zim_tracker/services/ai_service.dart';
 import 'package:zim_tracker/services/firestore_service.dart';
 import 'package:zim_tracker/theme/volt_theme.dart';
 import 'package:zim_tracker/models/schedule_slot.dart';
-import 'package:zim_tracker/services/seed_service.dart';
+import 'package:zim_tracker/services/live_grid_service.dart';
 
 class AdminSyncScreen extends StatefulWidget {
   const AdminSyncScreen({super.key});
@@ -17,7 +17,7 @@ class _AdminSyncScreenState extends State<AdminSyncScreen> {
   final TextEditingController _noticeController = TextEditingController();
   final AIService _aiService = AIService();
   final FirestoreService _firestoreService = FirestoreService();
-  final SeedService _seedService = SeedService();
+  final LiveGridService _liveGridService = LiveGridService();
   bool _isProcessing = false;
   bool _isSeeding = false;
 
@@ -83,35 +83,31 @@ class _AdminSyncScreenState extends State<AdminSyncScreen> {
     }
   }
 
-  void _handleSeed() async {
+  void _handleForceRefresh() async {
     setState(() => _isSeeding = true);
     try {
-      final nodeCount = await _seedService.seedStructuralZones();
-
-      // Pull the zones we just wrote and run one national AI simulation
-      // sweep so every node gets a status + ETA in a single pass.
-      final zones = await _firestoreService.getGridZones().first;
-      final simResults = await _aiService.simulateNationalGrid(zones);
-      for (final entry in simResults.entries) {
-        await _firestoreService.updateZoneSimulation(entry.key, entry.value.status, entry.value.etaMinutes);
-      }
+      // Populates geography automatically if the registry is empty, and
+      // always runs a fresh AI status sweep regardless of staleness. This
+      // is the same automatic pipeline that runs on every app launch and
+      // every 15 minutes in the background \u2014 this button just triggers it
+      // on demand for testing, it doesn't do anything fundamentally
+      // different from normal operation.
+      await _liveGridService.ensureLiveGridData(forceRefresh: true);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             backgroundColor: VoltTheme.neonGreen,
             content: Text(
-              simResults.isEmpty
-                  ? 'NATIONAL GRID SEEDED: $nodeCount NODES (AI SIMULATION UNAVAILABLE \u2014 CHECK KEY)'
-                  : 'NATIONAL GRID SIMULATED: $nodeCount NODES ACROSS ZIMBABWE',
-              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+              'LIVE GRID REFRESHED: AI SWEEP COMPLETE',
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
             ),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('SEED ERROR: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('REFRESH ERROR: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSeeding = false);
@@ -210,19 +206,24 @@ class _AdminSyncScreenState extends State<AdminSyncScreen> {
             const Divider(color: Colors.white10),
             const SizedBox(height: 24),
             Text(
-              'RECOVERY PROTOCOL',
+              'LIVE GRID CONTROL',
               style: VoltTheme.dataStyle.copyWith(fontSize: 10, color: VoltTheme.textMuted),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'The grid refreshes itself automatically on app launch and every 15 minutes. This button forces an immediate sweep for testing \u2014 it isn\'t required for normal operation.',
+              style: TextStyle(color: VoltTheme.textMuted, fontSize: 12, height: 1.4),
             ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               height: 48,
               child: OutlinedButton.icon(
-                onPressed: _isSeeding ? null : _handleSeed,
+                onPressed: _isSeeding ? null : _handleForceRefresh,
                 icon: _isSeeding 
                     ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(LucideIcons.database),
-                label: Text(_isSeeding ? 'SIMULATING GRID...' : 'SIMULATE NATIONAL GRID'),
+                    : const Icon(LucideIcons.refreshCw),
+                label: Text(_isSeeding ? 'REFRESHING GRID...' : 'FORCE REFRESH LIVE GRID'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: VoltTheme.cyberBlue,
                   side: const BorderSide(color: VoltTheme.cyberBlue),

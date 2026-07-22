@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:zim_tracker/models/grid_zone.dart';
+import 'package:zim_tracker/services/ai_service.dart';
 
 /// A structural grid node: real place, real (approximate) coordinates.
-/// No status/restoration data lives here \u2014 that's populated afterwards by
-/// [AIService.simulateNationalGrid], since we have no live ZETDC feed.
+/// No status/restoration data lives here -- that's populated by
+/// [AIService.simulateNationalGrid] via [LiveGridService.ensureLiveGridData].
 class _NodeDef {
   final String id;
   final String name;
@@ -13,14 +15,31 @@ class _NodeDef {
   const _NodeDef(this.id, this.name, this.region, this.lat, this.lng, this.suburbCode);
 }
 
-/// Populates Firestore with a national set of real Zimbabwean locations
-/// spanning all 10 provinces, plus a rotation-group load-shedding schedule
-/// per node. This is STRUCTURAL data only (geography + a plausible rotation
-/// pattern) \u2014 it deliberately does NOT bake in fake live status, since that
-/// would misrepresent simulated data as real. Call [AIService.simulateNationalGrid]
-/// right after seeding to populate ON/OFF + ETA for every node in one pass.
-class SeedService {
+/// Keeps the national grid registry populated and current.
+///
+/// This replaces the old manual "admin seeds fake data" workflow. There are
+/// two kinds of data here, handled differently:
+///
+/// 1. GEOGRAPHY (node id/name/region/coordinates/suburb code) -- this is
+///    real-world structural data that doesn't change, so it stays as a
+///    fixed list in code (AI cannot be trusted to invent accurate
+///    real-world lat/lng for Zimbabwean towns -- it can hallucinate). It's
+///    written to Firestore once, automatically, the first time the app
+///    finds the `zones` collection empty. This is NOT "seed data" in the
+///    problematic sense -- it's just where the pins live on the map.
+///
+/// 2. STATUS (ON/OFF + ETA) -- this is what's actually "live." It comes
+///    from [AIService.simulateNationalGrid] and refreshes
+///    automatically whenever it's stale (see [_staleAfter]), with no admin
+///    action required. This is called from [HomeViewModel] on app start
+///    and on a periodic timer, so every user sees the same synced,
+///    current-ish simulated status without anyone needing to press a
+///    button.
+class LiveGridService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final AIService _aiService = AIService();
+
+  static const Duration _staleAfter = Duration(minutes: 15);
 
   static const List<_NodeDef> _nationalNodes = [
     // --- Harare Metro ---
@@ -99,10 +118,30 @@ class SeedService {
     'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'
   ];
 
-  /// Seeds structural zone data (geography only, placeholder status) and a
-  /// rotation-group schedule for every node. Call [AIService.simulateNationalGrid]
-  /// immediately after this to populate realistic ON/OFF status.
-  Future<int> seedStructuralZones() async {
+  /// The single entry point for keeping the grid current. Call this on app
+  /// start and on a periodic timer -- it's cheap to call repeatedly since
+  /// it checks staleness before doing any real work.
+  ///
+  /// - If `zones` is empty, writes geography + rotation schedules once.
+  /// - If the last AI status sweep is older than [_staleAfter] (or
+  ///   [forceRefresh] is true), runs a fresh AI sweep over every node and
+  ///   writes status + ETA for all of them.
+  Future<void> ensureLiveGridData({bool forceRefresh = false}) async {
+    final zonesSnapshot = await _db.collection('zones').limit(1).get();
+    if (zonesSnapshot.docs.isEmpty) {
+      await _writeGeography();
+    }
+
+    final metaDoc = await _db.collection('meta').doc('gridStatus').get();
+    final lastUpdated = (metaDoc.data()?['lastUpdated'] as Timestamp?)?.toDate();
+    final isStale = lastUpdated == null || DateTime.now().difference(lastUpdated) > _staleAfter;
+
+    if (forceRefresh || isStale) {
+      await _refreshLiveStatus();
+    }
+  }
+
+  Future<void> _writeGeography() async {
     final batch = _db.batch();
 
     for (final node in _nationalNodes) {
@@ -110,7 +149,7 @@ class SeedService {
       batch.set(ref, {
         'name': node.name,
         'region': node.region,
-        'status': 'ON', // Placeholder \u2014 overwritten by the AI sweep right after seeding.
+        'status': 'ON', // Placeholder until the first AI sweep runs, seconds later.
         'estimatedRestoration': null,
         'lastUpdated': FieldValue.serverTimestamp(),
         'latitude': node.lat,
@@ -122,18 +161,45 @@ class SeedService {
     await batch.commit();
 
     for (final node in _nationalNodes) {
-      await _seedRotationSchedule(node.id);
+      await _writeRotationSchedule(node.id);
     }
+  }
 
-    return _nationalNodes.length;
+  /// Runs an AI sweep across every currently-registered zone and writes
+  /// status + ETA for all of them in one batch, then stamps the refresh
+  /// time so other clients/sessions know not to re-fetch immediately.
+  Future<void> _refreshLiveStatus() async {
+    final snapshot = await _db.collection('zones').get();
+    if (snapshot.docs.isEmpty) return;
+
+    final zoneRefs = {for (final doc in snapshot.docs) doc.id: doc.reference};
+    final zones = snapshot.docs.map((doc) => GridZone.fromFirestore(doc)).toList();
+
+    final results = await _aiService.simulateNationalGrid(zones);
+    if (results.isEmpty) return; // AI unavailable this cycle -- try again next call.
+
+    final batch = _db.batch();
+    for (final entry in results.entries) {
+      final ref = zoneRefs[entry.key];
+      if (ref == null) continue;
+      batch.update(ref, {
+        'status': entry.value.status == PowerStatus.on ? 'ON' : 'OFF',
+        'estimatedRestoration': entry.value.etaMinutes != null
+            ? Timestamp.fromDate(DateTime.now().add(Duration(minutes: entry.value.etaMinutes!)))
+            : null,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+    }
+    batch.set(_db.collection('meta').doc('gridStatus'), {'lastUpdated': FieldValue.serverTimestamp()});
+    await batch.commit();
   }
 
   /// Assigns each node to one of 4 rotation groups (A-D) based on a stable
-  /// hash of its id, then writes a weekly schedule mimicking real ZETDC-style
-  /// rolling load shedding \u2014 weekday shedding blocks staggered by group,
-  /// lighter shedding on weekends. This is an algorithmic simulation, not
-  /// scraped from a real ZETDC notice.
-  Future<void> _seedRotationSchedule(String zoneId) async {
+  /// hash of its id, then writes a weekly schedule mimicking real
+  /// ZETDC-style rolling load shedding -- weekday shedding blocks staggered
+  /// by group, lighter shedding on weekends. This is an algorithmic
+  /// simulation, not scraped from a real ZETDC notice.
+  Future<void> _writeRotationSchedule(String zoneId) async {
     final group = zoneId.hashCode.abs() % 4; // 0=A, 1=B, 2=C, 3=D
     final weekdayOffBlock = [
       {'start': '04:00', 'end': '10:00'}, // Group A
@@ -147,13 +213,13 @@ class SeedService {
       List<Map<String, dynamic>> slots;
 
       if (isWeekend) {
-        // Lighter shedding on weekends \u2014 shorter evening block only.
+        // Lighter shedding on weekends -- shorter evening block only.
         slots = [
           {'startTime': '18:00', 'endTime': '21:00', 'type': 'OFF', 'title': 'Weekend Trim', 'subtitle': 'Reduced Rotation'},
           {'startTime': '21:00', 'endTime': '18:00', 'type': 'ON', 'title': 'Grid Stable', 'subtitle': 'Weekend Supply'},
         ];
       } else if (group == 3) {
-        // Group D's block wraps midnight \u2014 split into two slots within the same day.
+        // Group D's block wraps midnight -- split into two slots within the same day.
         slots = [
           {'startTime': '00:00', 'endTime': '04:00', 'type': 'OFF', 'title': 'Power Off', 'subtitle': 'Group D Rotation'},
           {'startTime': '04:00', 'endTime': '22:00', 'type': 'ON', 'title': 'Grid Active', 'subtitle': 'Normal Supply'},
