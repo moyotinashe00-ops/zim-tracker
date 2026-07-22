@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    // Users: Private preferences
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    // Zones: Global grid nodes
+    match /zones/{zoneId} {
+      allow read: if isAuthenticated();
+      // Allow full write for authenticated nodes to enable Sweep & Seed
+      allow write: if isAuthenticated();
+      match /schedules/{day} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+    // Reports: Community telemetry
+    match /reports/{reportId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid;
+    }
+    // Alerts: National events
+    match /alerts/{alertId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+    // Meta: App-wide sync state (e.g. last grid refresh timestamp, used to
+    // decide when the automatic live AI sweep should re-run)
+    match /meta/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}
