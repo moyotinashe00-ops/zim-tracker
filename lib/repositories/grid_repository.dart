@@ -79,4 +79,28 @@ class GridRepository {
             .map((doc) => GridZone.fromMap(doc.id, doc.data()))
             .toList());
   }
+
+  /// Records a user's vote on whether the AI-simulated status matched
+  /// reality at their location. No per-user vote de-duplication yet --
+  /// this is a lightweight aggregate signal, not an audited poll.
+  Future<void> voteZoneAccuracy(String zoneId, bool wasAccurate) async {
+    await _firestore.collection('zones').doc(zoneId).update({
+      wasAccurate ? 'accurateVotes' : 'inaccurateVotes': FieldValue.increment(1),
+    });
+  }
+
+  /// Returns the most recent status-change events for a zone, newest first.
+  /// Populated by [LiveGridService] whenever an AI sweep detects a zone's
+  /// status actually flipped (not on every 15-minute poll -- only on
+  /// change), so this reflects real transitions, not polling noise.
+  Stream<List<Map<String, dynamic>>> getZoneHistory(String zoneId, {int limit = 20}) {
+    return _firestore
+        .collection('zones')
+        .doc(zoneId)
+        .collection('history')
+        .orderBy('timestamp', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
+  }
 }

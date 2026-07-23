@@ -9,7 +9,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:zim_tracker/screens/main_layout.dart';
-import 'package:zim_tracker/services/user_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -42,6 +42,8 @@ class HomeScreen extends StatelessWidget {
                           const SizedBox(height: 12),
                           const GridPulseWidget(),
                           const SizedBox(height: 24),
+                          _buildWatchlist(context, vm),
+                          const SizedBox(height: 20),
                           _buildZoneHeader(context, zone),
                           const SizedBox(height: 20),
                           _buildMainStatusDisplay(context, zone),
@@ -109,6 +111,79 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildWatchlist(BuildContext context, HomeViewModel vm) {
+    return StreamBuilder<List<GridZone>>(
+      stream: vm.watchlistZonesStream,
+      builder: (context, snapshot) {
+        final pinned = snapshot.data ?? [];
+        if (pinned.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('MY WATCHLIST', style: VoltTheme.dataStyle.copyWith(fontSize: 10, color: VoltTheme.textMuted)),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 84,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: pinned.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (context, index) {
+                  final z = pinned[index];
+                  final isOn = z.status == PowerStatus.on;
+                  final accent = isOn ? VoltTheme.neonGreen : VoltTheme.neonRed;
+                  final isSelected = z.id == vm.selectedZoneId;
+
+                  return GestureDetector(
+                    onTap: () => vm.selectZone(z.id),
+                    child: Container(
+                      width: 140,
+                      padding: const EdgeInsets.all(12),
+                      decoration: VoltTheme.glassDecoration.copyWith(
+                        border: Border.all(color: isSelected ? VoltTheme.cyberBlue : accent.withValues(alpha: 0.2)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+                              ),
+                              const Spacer(),
+                              GestureDetector(
+                                onTap: () => vm.togglePinnedZone(z.id),
+                                child: const Icon(LucideIcons.x, size: 14, color: VoltTheme.textDim),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            z.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                            isOn ? 'ON' : 'OFF',
+                            style: VoltTheme.dataStyle.copyWith(fontSize: 10, color: accent),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -200,7 +275,53 @@ class HomeScreen extends StatelessWidget {
               _buildStatusStat('CONFIDENCE', '88%', LucideIcons.shieldCheck),
             ],
           ),
+          if (zone != null) ...[
+            const SizedBox(height: 20),
+            const Divider(height: 1, color: Colors.white10),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('WAS THIS ACCURATE?', style: VoltTheme.dataStyle.copyWith(fontSize: 9, color: VoltTheme.textMuted)),
+                Row(
+                  children: [
+                    _buildVoteButton(context, LucideIcons.thumbsUp, VoltTheme.neonGreen, () => _submitVote(context, zone.id, true)),
+                    const SizedBox(width: 8),
+                    _buildVoteButton(context, LucideIcons.thumbsDown, VoltTheme.neonRed, () => _submitVote(context, zone.id, false)),
+                  ],
+                ),
+              ],
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildVoteButton(BuildContext context, IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, size: 16, color: color),
+      ),
+    );
+  }
+
+  void _submitVote(BuildContext context, String zoneId, bool wasAccurate) {
+    context.read<HomeViewModel>().voteZoneAccuracy(zoneId, wasAccurate);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 2),
+        backgroundColor: VoltTheme.slate,
+        content: Text(
+          'Thanks for the feedback',
+          style: VoltTheme.dataStyle.copyWith(fontSize: 12, color: Colors.white),
+        ),
       ),
     );
   }
@@ -256,40 +377,15 @@ class HomeScreen extends StatelessWidget {
           StreamBuilder<List<GridZone>>(
             stream: vm.allZonesStream,
             builder: (context, snapshot) {
-              final zones = snapshot.data ?? [];
-              return FlutterMap(
-                options: const MapOptions(
-                  initialCenter: LatLng(-18.8792, 29.8297), // Center of Zimbabwe for national view
-                  initialZoom: 6.0, // Zoomed out to show the whole country
-                  interactionOptions: InteractionOptions(flags: InteractiveFlag.none),
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.zim_tracker.app',
-                  ),
-                  MarkerLayer(
-                    markers: zones.map((z) => Marker(
-                      point: LatLng(z.latitude, z.longitude),
-                      width: 15,
-                      height: 15,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: (z.status == PowerStatus.on ? VoltTheme.neonGreen : VoltTheme.neonRed),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1),
-                          boxShadow: [
-                            BoxShadow(
-                              color: (z.status == PowerStatus.on ? VoltTheme.neonGreen : VoltTheme.neonRed).withValues(alpha: 0.4),
-                              blurRadius: 4,
-                            )
-                          ],
-                        ),
-                      ),
-                    )).toList(),
-                  ),
-                ],
-              );
+              if (snapshot.hasError) {
+                return FutureBuilder<List<GridZone>>(
+                  future: vm.getCachedZonesFallback(),
+                  builder: (context, cacheSnapshot) {
+                    return _buildMapContent(cacheSnapshot.data ?? [], isOffline: true);
+                  },
+                );
+              }
+              return _buildMapContent(snapshot.data ?? [], isOffline: false);
             },
           ),
           Container(
@@ -317,7 +413,68 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildMapContent(List<GridZone> zones, {required bool isOffline}) {
+    return Stack(
+      children: [
+        FlutterMap(
+          options: const MapOptions(
+            initialCenter: LatLng(-18.8792, 29.8297), // Center of Zimbabwe for national view
+            initialZoom: 6.0, // Zoomed out to show the whole country
+            interactionOptions: InteractionOptions(flags: InteractiveFlag.none),
+          ),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.zim_tracker.app',
+            ),
+            MarkerLayer(
+              markers: zones.map((z) => Marker(
+                point: LatLng(z.latitude, z.longitude),
+                width: 15,
+                height: 15,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: (z.status == PowerStatus.on ? VoltTheme.neonGreen : VoltTheme.neonRed),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (z.status == PowerStatus.on ? VoltTheme.neonGreen : VoltTheme.neonRed).withValues(alpha: 0.4),
+                        blurRadius: 4,
+                      )
+                    ],
+                  ),
+                ),
+              )).toList(),
+            ),
+          ],
+        ),
+        if (isOffline)
+          Positioned(
+            top: 8,
+            left: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: VoltTheme.amber.withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(LucideIcons.wifiOff, size: 12, color: Colors.black),
+                  const SizedBox(width: 6),
+                  Text('OFFLINE \u2014 LAST KNOWN DATA', style: VoltTheme.dataStyle.copyWith(fontSize: 8, color: Colors.black)),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _buildQuickActions(BuildContext context, GridZone? zone) {
+    final vm = context.read<HomeViewModel>();
     return Column(
       children: [
         _buildActionTile(
@@ -336,28 +493,137 @@ class HomeScreen extends StatelessWidget {
           onTap: () => MainLayout.of(context)?.setTab(1), // Go to Chronos tab
         ),
         const SizedBox(height: 12),
+        if (zone != null) ...[
+          _buildActionTile(
+            icon: LucideIcons.history,
+            title: 'Status History',
+            subtitle: 'Recent ON/OFF transitions for this zone',
+            color: VoltTheme.amber,
+            onTap: () => _showHistorySheet(context, vm, zone),
+          ),
+          const SizedBox(height: 12),
+        ],
         _buildFavoriteToggle(context, zone),
+        if (zone != null) ...[
+          const SizedBox(height: 12),
+          _buildNotifyToggle(context, vm, zone),
+        ],
       ],
     );
   }
 
   Widget _buildFavoriteToggle(BuildContext context, GridZone? zone) {
     if (zone == null) return const SizedBox.shrink();
-    final userService = UserService();
+    final vm = context.read<HomeViewModel>();
 
     return StreamBuilder<List<String>>(
-      stream: userService.getFavorites(),
+      stream: vm.pinnedZoneIdsStream,
       builder: (context, snapshot) {
         final isFav = snapshot.data?.contains(zone.id) ?? false;
         return _buildActionTile(
-          icon: isFav ? LucideIcons.heart : LucideIcons.heart,
+          icon: LucideIcons.heart,
           title: isFav ? 'Remove from Watchlist' : 'Add to Watchlist',
-          subtitle: isFav ? 'Tracking grid node actively' : 'Receive priority status updates',
+          subtitle: isFav ? 'Tracking grid node actively' : 'Pin this zone for quick access',
           color: isFav ? VoltTheme.neonRed : VoltTheme.cyberBlue,
-          onTap: () => userService.toggleFavorite(zone.id),
+          onTap: () => vm.togglePinnedZone(zone.id),
         );
       },
     );
+  }
+
+  Widget _buildNotifyToggle(BuildContext context, HomeViewModel vm, GridZone zone) {
+    return StreamBuilder<List<String>>(
+      stream: vm.notifiedZoneIdsStream,
+      builder: (context, snapshot) {
+        final isSubscribed = snapshot.data?.contains(zone.id) ?? false;
+        return _buildActionTile(
+          icon: isSubscribed ? LucideIcons.bellRing : LucideIcons.bell,
+          title: isSubscribed ? 'Alerts Enabled' : 'Notify Me On Change',
+          subtitle: isSubscribed
+              ? 'You\'ll get an alert when this zone flips'
+              : 'Get notified when this zone\'s status changes',
+          color: isSubscribed ? VoltTheme.neonGreen : VoltTheme.textMuted,
+          onTap: () => vm.toggleZoneNotifications(zone.id),
+        );
+      },
+    );
+  }
+
+  void _showHistorySheet(BuildContext context, HomeViewModel vm, GridZone zone) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: VoltTheme.slate,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${zone.name.toUpperCase()} \u2014 STATUS HISTORY', style: VoltTheme.dataStyle.copyWith(fontSize: 12)),
+              const SizedBox(height: 16),
+              StreamBuilder<List<Map<String, dynamic>>>(
+                stream: vm.getZoneHistory(zone.id),
+                builder: (context, snapshot) {
+                  final history = snapshot.data ?? [];
+                  if (!snapshot.hasData) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(child: CircularProgressIndicator(color: VoltTheme.cyberBlue)),
+                    );
+                  }
+                  if (history.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Text(
+                        'No transitions recorded yet \u2014 check back after the grid changes state a few times.',
+                        style: TextStyle(color: VoltTheme.textMuted, fontSize: 13),
+                      ),
+                    );
+                  }
+                  return ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 320),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: history.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.white10),
+                      itemBuilder: (context, index) {
+                        final entry = history[index];
+                        final isOn = entry['status'] == 'ON';
+                        final ts = entry['timestamp'];
+                        final time = ts is Timestamp ? ts.toDate() : null;
+                        return ListTile(
+                          leading: Icon(
+                            isOn ? LucideIcons.zap : LucideIcons.zapOff,
+                            color: isOn ? VoltTheme.neonGreen : VoltTheme.neonRed,
+                            size: 18,
+                          ),
+                          title: Text(
+                            isOn ? 'Power Restored' : 'Power Went Off',
+                            style: const TextStyle(color: Colors.white, fontSize: 13),
+                          ),
+                          subtitle: time != null
+                              ? Text(_formatRelativeTime(time), style: TextStyle(color: VoltTheme.textMuted, fontSize: 11))
+                              : null,
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  String _formatRelativeTime(DateTime time) {
+    final diff = DateTime.now().difference(time);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
   }
 
   Widget _buildActionTile({

@@ -174,6 +174,7 @@ class LiveGridService {
 
     final zoneRefs = {for (final doc in snapshot.docs) doc.id: doc.reference};
     final zones = snapshot.docs.map((doc) => GridZone.fromFirestore(doc)).toList();
+    final previousStatus = {for (final z in zones) z.id: z.status};
 
     final results = await _aiService.simulateNationalGrid(zones);
     if (results.isEmpty) return; // AI unavailable this cycle -- try again next call.
@@ -182,13 +183,26 @@ class LiveGridService {
     for (final entry in results.entries) {
       final ref = zoneRefs[entry.key];
       if (ref == null) continue;
+      final newStatus = entry.value.status;
+
       batch.update(ref, {
-        'status': entry.value.status == PowerStatus.on ? 'ON' : 'OFF',
+        'status': newStatus == PowerStatus.on ? 'ON' : 'OFF',
         'estimatedRestoration': entry.value.etaMinutes != null
             ? Timestamp.fromDate(DateTime.now().add(Duration(minutes: entry.value.etaMinutes!)))
             : null,
         'lastUpdated': FieldValue.serverTimestamp(),
       });
+
+      // Only log a history entry on an actual transition, not on every
+      // 15-minute poll -- otherwise the history view would just be 96
+      // identical entries a day instead of a meaningful uptime record.
+      if (previousStatus[entry.key] != null && previousStatus[entry.key] != newStatus) {
+        final historyRef = ref.collection('history').doc();
+        batch.set(historyRef, {
+          'status': newStatus == PowerStatus.on ? 'ON' : 'OFF',
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+      }
     }
     batch.set(_db.collection('meta').doc('gridStatus'), {'lastUpdated': FieldValue.serverTimestamp()});
     await batch.commit();

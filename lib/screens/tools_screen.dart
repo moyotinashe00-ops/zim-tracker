@@ -15,6 +15,14 @@ class ToolsScreen extends StatefulWidget {
 class _ToolsScreenState extends State<ToolsScreen> {
   final TextEditingController _amountController = TextEditingController();
   final Battery _battery = Battery();
+
+  // Backup Power Calculator state
+  String _backupMode = 'generator'; // 'generator' or 'inverter'
+  final TextEditingController _tankLitersController = TextEditingController();
+  final TextEditingController _consumptionLphController = TextEditingController();
+  final TextEditingController _batteryAhController = TextEditingController();
+  final TextEditingController _loadWattsController = TextEditingController();
+  double? _backupRuntimeHours;
   
   double _calculatedUnits = 0.0;
   bool _isTorchOn = false;
@@ -53,7 +61,27 @@ class _ToolsScreenState extends State<ToolsScreen> {
   void dispose() {
     _batterySubscription?.cancel();
     _amountController.dispose();
+    _tankLitersController.dispose();
+    _consumptionLphController.dispose();
+    _batteryAhController.dispose();
+    _loadWattsController.dispose();
     super.dispose();
+  }
+
+  void _calculateBackupRuntime() {
+    if (_backupMode == 'generator') {
+      final tank = double.tryParse(_tankLitersController.text) ?? 0.0;
+      final consumption = double.tryParse(_consumptionLphController.text) ?? 0.0;
+      setState(() => _backupRuntimeHours = consumption > 0 ? tank / consumption : null);
+    } else {
+      final ah = double.tryParse(_batteryAhController.text) ?? 0.0;
+      final watts = double.tryParse(_loadWattsController.text) ?? 0.0;
+      // Assumes a standard 12V battery bank and ~85% inverter efficiency
+      // (typical for budget modified-sine inverters common locally).
+      const voltage = 12.0;
+      const efficiency = 0.85;
+      setState(() => _backupRuntimeHours = watts > 0 ? (ah * voltage * efficiency) / watts : null);
+    }
   }
 
   void _calculateUnits() {
@@ -113,6 +141,8 @@ class _ToolsScreenState extends State<ToolsScreen> {
               _buildSurvivalKit(),
               const SizedBox(height: 32),
               _buildCalculatorCard(),
+              const SizedBox(height: 24),
+              _buildBackupCalculatorCard(),
               const SizedBox(height: 24),
               _buildSolarEstimatorCard(),
               const SizedBox(height: 30),
@@ -242,6 +272,123 @@ class _ToolsScreenState extends State<ToolsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildBackupCalculatorCard() {
+    final isGenerator = _backupMode == 'generator';
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: VoltTheme.glassDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(LucideIcons.fuel, color: VoltTheme.cyberBlue, size: 20),
+              const SizedBox(width: 12),
+              Text('BACKUP POWER RUNTIME', style: VoltTheme.dataStyle.copyWith(fontSize: 14)),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: _buildModeToggleButton('GENERATOR', isGenerator, () {
+                  setState(() {
+                    _backupMode = 'generator';
+                    _backupRuntimeHours = null;
+                  });
+                }),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildModeToggleButton('INVERTER/BATTERY', !isGenerator, () {
+                  setState(() {
+                    _backupMode = 'inverter';
+                    _backupRuntimeHours = null;
+                  });
+                }),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          if (isGenerator) ...[
+            _buildBackupField('FUEL TANK SIZE (LITRES)', _tankLitersController, LucideIcons.fuel),
+            const SizedBox(height: 16),
+            _buildBackupField('CONSUMPTION RATE (LITRES/HR)', _consumptionLphController, LucideIcons.gauge),
+          ] else ...[
+            _buildBackupField('BATTERY CAPACITY (Ah)', _batteryAhController, LucideIcons.batteryFull),
+            const SizedBox(height: 16),
+            _buildBackupField('LOAD DRAW (WATTS)', _loadWattsController, LucideIcons.plug),
+            const SizedBox(height: 8),
+            Text(
+              'Assumes a standard 12V battery bank at ~85% inverter efficiency.',
+              style: TextStyle(color: VoltTheme.textDim, fontSize: 11),
+            ),
+          ],
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.03),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('ESTIMATED RUNTIME', style: VoltTheme.dataStyle.copyWith(fontSize: 10, color: VoltTheme.textMuted)),
+                Text(
+                  _backupRuntimeHours != null ? '${_backupRuntimeHours!.toStringAsFixed(1)} hrs' : '--',
+                  style: VoltTheme.dataStyle.copyWith(color: VoltTheme.neonGreen, fontSize: 24),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModeToggleButton(String label, bool isActive, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: isActive ? VoltTheme.cyberBlue.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: isActive ? VoltTheme.cyberBlue : Colors.white10),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: VoltTheme.dataStyle.copyWith(fontSize: 10, color: isActive ? VoltTheme.cyberBlue : VoltTheme.textMuted),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBackupField(String label, TextEditingController controller, IconData icon) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: VoltTheme.dataStyle.copyWith(fontSize: 8, color: VoltTheme.textMuted)),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          style: VoltTheme.dataStyle.copyWith(color: Colors.white, fontSize: 18),
+          onChanged: (v) => _calculateBackupRuntime(),
+          decoration: InputDecoration(
+            hintText: '0',
+            hintStyle: const TextStyle(color: VoltTheme.textDim),
+            prefixIcon: Icon(icon, color: VoltTheme.cyberBlue, size: 16),
+            border: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.white10)),
+          ),
+        ),
+      ],
     );
   }
 

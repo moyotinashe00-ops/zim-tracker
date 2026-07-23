@@ -17,6 +17,10 @@ service cloud.firestore {
       match /schedules/{day} {
         allow read, write: if isAuthenticated();
       }
+      // History: status-change log per zone, used for uptime views
+      match /history/{entryId} {
+        allow read, write: if isAuthenticated();
+      }
     }
     // Reports: Community telemetry
     match /reports/{reportId} {
