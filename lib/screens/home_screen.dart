@@ -131,7 +131,7 @@ class HomeScreen extends StatelessWidget {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: pinned.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                separatorBuilder: (_, _) => const SizedBox(width: 10),
                 itemBuilder: (context, index) {
                   final z = pinned[index];
                   final isOn = z.status == PowerStatus.on;
@@ -587,7 +587,7 @@ class HomeScreen extends StatelessWidget {
                     child: ListView.separated(
                       shrinkWrap: true,
                       itemCount: history.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.white10),
+                      separatorBuilder: (_, _) => const Divider(height: 1, color: Colors.white10),
                       itemBuilder: (context, index) {
                         final entry = history[index];
                         final isOn = entry['status'] == 'ON';
