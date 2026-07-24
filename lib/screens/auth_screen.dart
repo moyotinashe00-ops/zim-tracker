@@ -35,7 +35,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
     if (result == null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           backgroundColor: VoltTheme.neonRed,
           content: Text('AUTHENTICATION FAILURE: CHECK CREDENTIALS', style: TextStyle(fontWeight: FontWeight.bold)),
         ),
@@ -77,7 +77,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 const SizedBox(height: 12),
                 Text(
                   _isLogin ? 'Enter your credentials to connect to the national grid.' : 'Register to receive real-time outage notifications.',
-                  style: const TextStyle(color: VoltTheme.textMuted, fontSize: 14),
+                  style: TextStyle(color: VoltTheme.textMuted, fontSize: 14),
                 ),
                 const SizedBox(height: 50),
                 _buildTextField(
@@ -140,7 +140,7 @@ class _AuthScreenState extends State<AuthScreen> {
             style: VoltTheme.dataStyle.copyWith(color: Colors.white, fontSize: 14),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: const TextStyle(color: VoltTheme.textDim, fontSize: 14),
+              hintStyle: TextStyle(color: VoltTheme.textDim, fontSize: 14),
               prefixIcon: Icon(icon, color: VoltTheme.cyberBlue, size: 18),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),

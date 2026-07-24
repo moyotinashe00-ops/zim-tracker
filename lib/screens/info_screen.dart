@@ -141,13 +141,13 @@ class _InfoScreenState extends State<InfoScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(stage, style: VoltTheme.dataStyle.copyWith(fontSize: 10, color: color)),
-              if (isCritical) const Icon(LucideIcons.alertOctagon, color: VoltTheme.neonRed, size: 16),
+              if (isCritical) Icon(LucideIcons.alertOctagon, color: VoltTheme.neonRed, size: 16),
             ],
           ),
           const SizedBox(height: 8),
           Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
           const SizedBox(height: 8),
-          Text(desc, style: const TextStyle(color: VoltTheme.textMuted, fontSize: 13, height: 1.4)),
+          Text(desc, style: TextStyle(color: VoltTheme.textMuted, fontSize: 13, height: 1.4)),
         ],
       ),
     );
@@ -162,7 +162,7 @@ class _InfoScreenState extends State<InfoScreen> {
         children: [
           Text('COMMUNITY INTELLIGENCE', style: VoltTheme.dataStyle.copyWith(fontSize: 12)),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'ZimTracker relies on user-reported telemetry. If your grid status differs from the official schedule, please flag it for verification.',
             style: TextStyle(color: VoltTheme.textMuted, fontSize: 13, height: 1.5),
           ),
@@ -185,7 +185,7 @@ class _InfoScreenState extends State<InfoScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: VoltTheme.neonRed.withValues(alpha: 0.1),
                 foregroundColor: VoltTheme.neonRed,
-                side: const BorderSide(color: VoltTheme.neonRed, width: 1),
+                side: BorderSide(color: VoltTheme.neonRed, width: 1),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
@@ -236,7 +236,7 @@ class _InfoScreenState extends State<InfoScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
+            color: VoltTheme.overlay(0.05),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Column(
@@ -269,7 +269,7 @@ class _InfoScreenState extends State<InfoScreen> {
       contentPadding: EdgeInsets.zero,
       leading: Icon(icon, color: VoltTheme.textDim, size: 18),
       title: Text(title, style: const TextStyle(color: Colors.white70, fontSize: 14)),
-      trailing: const Icon(LucideIcons.externalLink, size: 14, color: VoltTheme.textDim),
+      trailing: Icon(LucideIcons.externalLink, size: 14, color: VoltTheme.textDim),
       onTap: () => _launch(url),
     );
   }

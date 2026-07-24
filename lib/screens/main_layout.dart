@@ -44,7 +44,7 @@ class MainLayoutState extends State<MainLayout> {
       stream: _authService.user,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
+          return Scaffold(
             backgroundColor: VoltTheme.obsidian,
             body: Center(child: CircularProgressIndicator(color: VoltTheme.cyberBlue)),
           );
@@ -57,9 +57,9 @@ class MainLayoutState extends State<MainLayout> {
         return Scaffold(
           body: _screens[_currentIndex],
           bottomNavigationBar: Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               border: Border(
-                top: BorderSide(color: Colors.white10, width: 1),
+                top: BorderSide(color: VoltTheme.overlay(0.1), width: 1),
               ),
             ),
             child: BottomNavigationBar(

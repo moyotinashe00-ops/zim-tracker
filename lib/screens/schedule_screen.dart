@@ -45,7 +45,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                 stream: _firestoreService.getSchedule(vm.selectedZoneId, _currentDay),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator(color: VoltTheme.cyberBlue));
+                    return Center(child: CircularProgressIndicator(color: VoltTheme.cyberBlue));
                   }
 
                   final slots = snapshot.data ?? [];
@@ -82,7 +82,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             style: VoltTheme.dataStyle.copyWith(fontSize: 8, color: VoltTheme.cyberBlue),
           ),
           const SizedBox(height: 16),
-          const Divider(height: 1, color: Colors.white10),
+          Divider(height: 1, color: VoltTheme.overlay(0.1)),
         ],
       ),
     );
@@ -97,7 +97,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           IconButton(
-            icon: const Icon(LucideIcons.chevronLeft, color: VoltTheme.cyberBlue),
+            icon: Icon(LucideIcons.chevronLeft, color: VoltTheme.cyberBlue),
             onPressed: () => _changeDay(false),
           ),
           Text(
@@ -105,7 +105,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             style: VoltTheme.dataStyle.copyWith(fontSize: 16, color: Colors.white),
           ),
           IconButton(
-            icon: const Icon(LucideIcons.chevronRight, color: VoltTheme.cyberBlue),
+            icon: Icon(LucideIcons.chevronRight, color: VoltTheme.cyberBlue),
             onPressed: () => _changeDay(true),
           ),
         ],
@@ -139,7 +139,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               ),
               Text(
                 isOff ? 'Stage 2 Load Shedding' : 'Stable Operational Capacity',
-                style: const TextStyle(fontSize: 12, color: VoltTheme.textMuted),
+                style: TextStyle(fontSize: 12, color: VoltTheme.textMuted),
               ),
             ],
           ),
@@ -155,7 +155,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(LucideIcons.calendarX, color: VoltTheme.textDim, size: 48),
+          Icon(LucideIcons.calendarX, color: VoltTheme.textDim, size: 48),
           const SizedBox(height: 16),
           Text(
             'NO DATA FOR THIS CYCLE',

@@ -30,7 +30,7 @@ class _AdminSyncScreenState extends State<AdminSyncScreen> {
     if (result == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             backgroundColor: VoltTheme.neonRed,
             content: Text('PARSING ERROR: VERIFY GEMINI PROTOCOL', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
@@ -63,7 +63,7 @@ class _AdminSyncScreenState extends State<AdminSyncScreen> {
             title: Text('SYNC SUCCESSFUL', style: VoltTheme.dataStyle.copyWith(color: VoltTheme.neonGreen)),
             content: Text(
               'Grid intelligence database updated with ${zonesData.length} suburban nodes.',
-              style: const TextStyle(color: VoltTheme.textMuted),
+              style: TextStyle(color: VoltTheme.textMuted),
             ),
             actions: [
               TextButton(
@@ -96,7 +96,7 @@ class _AdminSyncScreenState extends State<AdminSyncScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             backgroundColor: VoltTheme.neonGreen,
             content: Text(
               'LIVE GRID REFRESHED: AI SWEEP COMPLETE',
@@ -120,7 +120,7 @@ class _AdminSyncScreenState extends State<AdminSyncScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: VoltTheme.slate,
         title: Text('WIPE REGISTRY?', style: VoltTheme.dataStyle.copyWith(color: VoltTheme.neonRed)),
-        content: const Text('This will decommission all nodes from the national grid database.', style: TextStyle(color: VoltTheme.textMuted)),
+        content: Text('This will decommission all nodes from the national grid database.', style: TextStyle(color: VoltTheme.textMuted)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
           TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('DECOMMISSION', style: TextStyle(color: VoltTheme.neonRed))),
@@ -145,7 +145,7 @@ class _AdminSyncScreenState extends State<AdminSyncScreen> {
         elevation: 0,
         title: Text('GRID SYNC PROTOCOL', style: VoltTheme.dataStyle.copyWith(fontSize: 14)),
         leading: IconButton(
-          icon: const Icon(LucideIcons.chevronLeft, color: VoltTheme.cyberBlue),
+          icon: Icon(LucideIcons.chevronLeft, color: VoltTheme.cyberBlue),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -164,7 +164,7 @@ class _AdminSyncScreenState extends State<AdminSyncScreen> {
               style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w900, height: 1.1),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Ingest raw text from ZETDC communications. Gemini AI will structure the data for national distribution.',
               style: TextStyle(color: VoltTheme.textMuted, fontSize: 13, height: 1.5),
             ),
@@ -175,7 +175,7 @@ class _AdminSyncScreenState extends State<AdminSyncScreen> {
                 controller: _noticeController,
                 maxLines: 12,
                 style: VoltTheme.dataStyle.copyWith(color: Colors.white, fontSize: 13),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'RAW DATA ENTRY...',
                   hintStyle: TextStyle(color: VoltTheme.textDim),
                   border: InputBorder.none,
@@ -203,14 +203,14 @@ class _AdminSyncScreenState extends State<AdminSyncScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            const Divider(color: Colors.white10),
+            Divider(color: VoltTheme.overlay(0.1)),
             const SizedBox(height: 24),
             Text(
               'LIVE GRID CONTROL',
               style: VoltTheme.dataStyle.copyWith(fontSize: 10, color: VoltTheme.textMuted),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'The grid refreshes itself automatically on app launch and every 15 minutes. This button forces an immediate sweep for testing \u2014 it isn\'t required for normal operation.',
               style: TextStyle(color: VoltTheme.textMuted, fontSize: 12, height: 1.4),
             ),
@@ -226,7 +226,7 @@ class _AdminSyncScreenState extends State<AdminSyncScreen> {
                 label: Text(_isSeeding ? 'REFRESHING GRID...' : 'FORCE REFRESH LIVE GRID'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: VoltTheme.cyberBlue,
-                  side: const BorderSide(color: VoltTheme.cyberBlue),
+                  side: BorderSide(color: VoltTheme.cyberBlue),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),

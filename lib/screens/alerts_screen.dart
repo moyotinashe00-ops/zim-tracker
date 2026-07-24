@@ -77,12 +77,12 @@ class _AlertsScreenState extends State<AlertsScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(LucideIcons.radio, color: VoltTheme.cyberBlue, size: 20),
+                  Icon(LucideIcons.radio, color: VoltTheme.cyberBlue, size: 20),
                   const SizedBox(width: 12),
                   Text('NETWORK SUBSCRIPTIONS', style: VoltTheme.dataStyle.copyWith(fontSize: 14)),
                 ],
               ),
-              const Icon(LucideIcons.moreHorizontal, color: VoltTheme.textDim, size: 20),
+              Icon(LucideIcons.moreHorizontal, color: VoltTheme.textDim, size: 20),
             ],
           ),
           const SizedBox(height: 24),
@@ -111,7 +111,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
           const SizedBox(height: 12),
           TextButton.icon(
             onPressed: () => _showAddNodeModal(context, vm, userService),
-            icon: const Icon(LucideIcons.plus, size: 14, color: VoltTheme.cyberBlue),
+            icon: Icon(LucideIcons.plus, size: 14, color: VoltTheme.cyberBlue),
             label: Text('ADD GRID NODE', style: VoltTheme.dataStyle.copyWith(fontSize: 10, color: VoltTheme.cyberBlue)),
           ),
         ],
@@ -165,7 +165,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
               child: Consumer<HomeViewModel>(
                 builder: (context, vm, child) {
                   if (vm.isSearching) {
-                    return const Center(child: CircularProgressIndicator(color: VoltTheme.cyberBlue));
+                    return Center(child: CircularProgressIndicator(color: VoltTheme.cyberBlue));
                   }
                   if (vm.searchResults.isEmpty) {
                     return Center(child: Text('ENTER ANY POINT IN ZIMBABWE', style: VoltTheme.dataStyle.copyWith(color: VoltTheme.textDim)));
@@ -176,8 +176,8 @@ class _AlertsScreenState extends State<AlertsScreen> {
                       final zone = vm.searchResults[index];
                       return ListTile(
                         title: Text(zone.name, style: const TextStyle(color: Colors.white)),
-                        subtitle: Text(zone.region, style: const TextStyle(color: VoltTheme.textMuted, fontSize: 10)),
-                        trailing: const Icon(LucideIcons.globe, color: VoltTheme.cyberBlue, size: 18),
+                        subtitle: Text(zone.region, style: TextStyle(color: VoltTheme.textMuted, fontSize: 10)),
+                        trailing: Icon(LucideIcons.globe, color: VoltTheme.cyberBlue, size: 18),
                         onTap: () {
                           vm.selectAndRegisterZone(zone);
                           Navigator.pop(ctx);
@@ -209,7 +209,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
       stream: _firestoreService.getAlerts(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator(color: VoltTheme.cyberBlue));
+          return Center(child: CircularProgressIndicator(color: VoltTheme.cyberBlue));
         }
 
         final alerts = snapshot.data!;
@@ -245,7 +245,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text(alert.description, style: const TextStyle(color: VoltTheme.textMuted, fontSize: 13, height: 1.4)),
+                Text(alert.description, style: TextStyle(color: VoltTheme.textMuted, fontSize: 13, height: 1.4)),
               ],
             ),
           ),
@@ -285,11 +285,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
       ),
       child: Column(
         children: [
-          const Icon(LucideIcons.activity, color: VoltTheme.cyberBlue, size: 24),
+          Icon(LucideIcons.activity, color: VoltTheme.cyberBlue, size: 24),
           const SizedBox(height: 16),
           Text('CRITICAL MONITORING', style: VoltTheme.dataStyle.copyWith(fontSize: 14)),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'Enable deep telemetry for substation fluctuations and phase monitoring in industrial zones.',
             textAlign: TextAlign.center,
             style: TextStyle(color: VoltTheme.textMuted, fontSize: 12, height: 1.5),

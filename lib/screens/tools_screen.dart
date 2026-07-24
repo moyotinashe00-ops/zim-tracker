@@ -232,7 +232,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
         children: [
           Row(
             children: [
-              const Icon(LucideIcons.calculator, color: VoltTheme.cyberBlue, size: 20),
+              Icon(LucideIcons.calculator, color: VoltTheme.cyberBlue, size: 20),
               const SizedBox(width: 12),
               Text('TOKEN CONVERSION', style: VoltTheme.dataStyle.copyWith(fontSize: 14)),
             ],
@@ -247,16 +247,16 @@ class _ToolsScreenState extends State<ToolsScreen> {
             onChanged: (v) => _calculateUnits(),
             decoration: InputDecoration(
               hintText: '0.00',
-              hintStyle: const TextStyle(color: VoltTheme.textDim),
-              prefixIcon: const Icon(LucideIcons.dollarSign, color: VoltTheme.cyberBlue, size: 18),
-              border: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white10)),
+              hintStyle: TextStyle(color: VoltTheme.textDim),
+              prefixIcon: Icon(LucideIcons.dollarSign, color: VoltTheme.cyberBlue, size: 18),
+              border: UnderlineInputBorder(borderSide: BorderSide(color: VoltTheme.overlay(0.1))),
             ),
           ),
           const SizedBox(height: 32),
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.03),
+              color: VoltTheme.overlay(0.03),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -286,7 +286,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
         children: [
           Row(
             children: [
-              const Icon(LucideIcons.fuel, color: VoltTheme.cyberBlue, size: 20),
+              Icon(LucideIcons.fuel, color: VoltTheme.cyberBlue, size: 20),
               const SizedBox(width: 12),
               Text('BACKUP POWER RUNTIME', style: VoltTheme.dataStyle.copyWith(fontSize: 14)),
             ],
@@ -332,7 +332,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.03),
+              color: VoltTheme.overlay(0.03),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -357,9 +357,9 @@ class _ToolsScreenState extends State<ToolsScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: isActive ? VoltTheme.cyberBlue.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.03),
+          color: isActive ? VoltTheme.cyberBlue.withValues(alpha: 0.15) : VoltTheme.overlay(0.03),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: isActive ? VoltTheme.cyberBlue : Colors.white10),
+          border: Border.all(color: isActive ? VoltTheme.cyberBlue : VoltTheme.overlay(0.1)),
         ),
         alignment: Alignment.center,
         child: Text(
@@ -383,9 +383,9 @@ class _ToolsScreenState extends State<ToolsScreen> {
           onChanged: (v) => _calculateBackupRuntime(),
           decoration: InputDecoration(
             hintText: '0',
-            hintStyle: const TextStyle(color: VoltTheme.textDim),
+            hintStyle: TextStyle(color: VoltTheme.textDim),
             prefixIcon: Icon(icon, color: VoltTheme.cyberBlue, size: 16),
-            border: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.white10)),
+            border: UnderlineInputBorder(borderSide: BorderSide(color: VoltTheme.overlay(0.1))),
           ),
         ),
       ],
@@ -406,7 +406,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(LucideIcons.sun, color: VoltTheme.amber, size: 20),
+                  Icon(LucideIcons.sun, color: VoltTheme.amber, size: 20),
                   const SizedBox(width: 12),
                   Text('PHOTOVOLTAIC ROI', style: VoltTheme.dataStyle.copyWith(fontSize: 14)),
                 ],
@@ -419,7 +419,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Calculate payback periods and energy independence forecasts for local solar installations.',
             style: TextStyle(color: VoltTheme.textMuted, fontSize: 13, height: 1.5),
           ),
@@ -429,7 +429,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
             child: ElevatedButton(
               onPressed: () {},
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white10,
+                backgroundColor: VoltTheme.overlay(0.1),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),

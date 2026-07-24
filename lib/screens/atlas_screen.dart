@@ -99,7 +99,7 @@ class _AtlasScreenState extends State<AtlasScreen> with SingleTickerProviderStat
                     decoration: VoltTheme.glassDecoration,
                     child: Row(
                       children: [
-                        const Icon(LucideIcons.map, color: VoltTheme.cyberBlue, size: 18),
+                        Icon(LucideIcons.map, color: VoltTheme.cyberBlue, size: 18),
                         const SizedBox(width: 12),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -120,8 +120,8 @@ class _AtlasScreenState extends State<AtlasScreen> with SingleTickerProviderStat
                     padding: const EdgeInsets.all(12),
                     decoration: VoltTheme.glassDecoration,
                     child: model.isSearching 
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: VoltTheme.cyberBlue))
-                      : const Icon(LucideIcons.refreshCw, color: VoltTheme.cyberBlue, size: 20),
+                      ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: VoltTheme.cyberBlue))
+                      : Icon(LucideIcons.refreshCw, color: VoltTheme.cyberBlue, size: 20),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -130,7 +130,7 @@ class _AtlasScreenState extends State<AtlasScreen> with SingleTickerProviderStat
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: VoltTheme.glassDecoration,
-                    child: const Icon(LucideIcons.bookOpen, color: VoltTheme.cyberBlue, size: 20),
+                    child: Icon(LucideIcons.bookOpen, color: VoltTheme.cyberBlue, size: 20),
                   ),
                 ),
               ],
@@ -153,7 +153,7 @@ class _AtlasScreenState extends State<AtlasScreen> with SingleTickerProviderStat
                 children: [
                   Row(
                     children: [
-                      const Icon(LucideIcons.sparkles, color: VoltTheme.amber, size: 14),
+                      Icon(LucideIcons.sparkles, color: VoltTheme.amber, size: 14),
                       const SizedBox(width: 8),
                       Text('STRATEGIC SUMMARY', style: VoltTheme.dataStyle.copyWith(fontSize: 8, color: VoltTheme.amber)),
                     ],
@@ -221,7 +221,7 @@ class _AtlasScreenState extends State<AtlasScreen> with SingleTickerProviderStat
                         ),
                         IconButton(
                           onPressed: () => setState(() => _inspectedZone = null),
-                          icon: const Icon(LucideIcons.x, color: VoltTheme.textDim, size: 20),
+                          icon: Icon(LucideIcons.x, color: VoltTheme.textDim, size: 20),
                         ),
                       ],
                     ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:zim_tracker/theme/volt_theme.dart';
+import 'package:zim_tracker/theme/theme_controller.dart';
 import 'package:zim_tracker/viewmodels/home_view_model.dart';
 import 'package:zim_tracker/models/grid_zone.dart';
 import 'package:zim_tracker/widgets/grid_pulse_widget.dart';
@@ -81,7 +82,7 @@ class HomeScreen extends StatelessWidget {
                 style: VoltTheme.dataStyle.copyWith(
                   letterSpacing: 4,
                   fontSize: 18,
-                  color: Colors.white,
+                  color: VoltTheme.textMain,
                 ),
               ),
               Text(
@@ -95,17 +96,30 @@ class HomeScreen extends StatelessWidget {
           ),
           Row(
             children: [
+              Builder(
+                builder: (context) {
+                  final themeController = context.watch<ThemeController>();
+                  return IconButton(
+                    onPressed: () => themeController.toggle(),
+                    icon: Icon(
+                      themeController.isDark ? LucideIcons.sun : LucideIcons.moon,
+                      color: VoltTheme.cyberBlue,
+                      size: 20,
+                    ),
+                  );
+                },
+              ),
               IconButton(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Analyzing nearby nodes...')),
                   );
                 },
-                icon: const Icon(LucideIcons.crosshair, color: VoltTheme.cyberBlue, size: 20),
+                icon: Icon(LucideIcons.crosshair, color: VoltTheme.cyberBlue, size: 20),
               ),
               IconButton(
                 onPressed: () => FirebaseAuth.instance.signOut(),
-                icon: const Icon(LucideIcons.logOut, color: VoltTheme.textMuted, size: 20),
+                icon: Icon(LucideIcons.logOut, color: VoltTheme.textMuted, size: 20),
               ),
             ],
           ),
@@ -160,7 +174,7 @@ class HomeScreen extends StatelessWidget {
                               const Spacer(),
                               GestureDetector(
                                 onTap: () => vm.togglePinnedZone(z.id),
-                                child: const Icon(LucideIcons.x, size: 14, color: VoltTheme.textDim),
+                                child: Icon(LucideIcons.x, size: 14, color: VoltTheme.textDim),
                               ),
                             ],
                           ),
@@ -193,7 +207,7 @@ class HomeScreen extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Icon(LucideIcons.mapPin, color: VoltTheme.cyberBlue, size: 14),
+            Icon(LucideIcons.mapPin, color: VoltTheme.cyberBlue, size: 14),
             const SizedBox(width: 8),
             Text(
               zone?.region.toUpperCase() ?? 'REGION SELECT',
@@ -261,23 +275,23 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              const Icon(LucideIcons.zap, color: VoltTheme.textDim, size: 32),
+              Icon(LucideIcons.zap, color: VoltTheme.textDim, size: 32),
             ],
           ),
           const SizedBox(height: 32),
-          const Divider(height: 1, color: Colors.white10),
+          Divider(height: 1, color: VoltTheme.overlay(0.1)),
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildStatusStat('RESTORATION', '2h 15m', LucideIcons.clock),
-              Container(width: 1, height: 40, color: Colors.white10),
+              Container(width: 1, height: 40, color: VoltTheme.overlay(0.1)),
               _buildStatusStat('CONFIDENCE', '88%', LucideIcons.shieldCheck),
             ],
           ),
           if (zone != null) ...[
             const SizedBox(height: 20),
-            const Divider(height: 1, color: Colors.white10),
+            Divider(height: 1, color: VoltTheme.overlay(0.1)),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -348,7 +362,7 @@ class HomeScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(LucideIcons.sparkles, color: VoltTheme.amber, size: 16),
+              Icon(LucideIcons.sparkles, color: VoltTheme.amber, size: 16),
               const SizedBox(width: 10),
               Text(
                 'AI GRID FORECAST',
@@ -568,7 +582,7 @@ class HomeScreen extends StatelessWidget {
                 builder: (context, snapshot) {
                   final history = snapshot.data ?? [];
                   if (!snapshot.hasData) {
-                    return const Padding(
+                    return Padding(
                       padding: EdgeInsets.symmetric(vertical: 24),
                       child: Center(child: CircularProgressIndicator(color: VoltTheme.cyberBlue)),
                     );
@@ -587,7 +601,7 @@ class HomeScreen extends StatelessWidget {
                     child: ListView.separated(
                       shrinkWrap: true,
                       itemCount: history.length,
-                      separatorBuilder: (_, _) => const Divider(height: 1, color: Colors.white10),
+                      separatorBuilder: (_, _) => Divider(height: 1, color: VoltTheme.overlay(0.1)),
                       itemBuilder: (context, index) {
                         final entry = history[index];
                         final isOn = entry['status'] == 'ON';
@@ -651,7 +665,7 @@ class HomeScreen extends StatelessWidget {
           ),
           title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
           subtitle: Text(subtitle, style: const TextStyle(fontSize: 11)),
-          trailing: const Icon(LucideIcons.chevronRight, size: 16, color: VoltTheme.textDim),
+          trailing: Icon(LucideIcons.chevronRight, size: 16, color: VoltTheme.textDim),
         ),
       ),
     );
