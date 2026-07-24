@@ -47,7 +47,13 @@ class HomeScreen extends StatelessWidget {
                           const SizedBox(height: 20),
                           _buildZoneHeader(context, zone),
                           const SizedBox(height: 20),
-                          _buildMainStatusDisplay(context, zone),
+                          StreamBuilder<int>(
+                            stream: vm.communityReportCountStream,
+                            builder: (context, snapshot) {
+                              final reportCount = snapshot.data ?? 0;
+                              return _buildMainStatusDisplay(context, zone, reportCount);
+                            },
+                          ),
                           const SizedBox(height: 20),
                           _buildAIForecast(context),
                           const SizedBox(height: 20),
@@ -128,19 +134,38 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildWatchlist(BuildContext context, HomeViewModel vm) {
-    return StreamBuilder<List<GridZone>>(
-      stream: vm.watchlistZonesStream,
-      builder: (context, snapshot) {
-        final pinned = snapshot.data ?? [];
-        if (pinned.isEmpty) return const SizedBox.shrink();
+  Widget _buildWatchlistSearch(BuildContext context, HomeViewModel vm) {
+    return Container(
+      decoration: VoltTheme.glassDecoration,
+      child: TextField(
+        onChanged: (query) => vm.search(query),
+        decoration: InputDecoration(
+          hintText: 'Search zones...',
+          hintStyle: TextStyle(color: VoltTheme.textMuted),
+          prefixIcon: Icon(LucideIcons.search, color: VoltTheme.textMuted),
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+        style: TextStyle(color: Colors.white),
+      ),
+    );
+  }
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('MY WATCHLIST', style: VoltTheme.dataStyle.copyWith(fontSize: 10, color: VoltTheme.textMuted)),
-            const SizedBox(height: 12),
-            SizedBox(
+  Widget _buildWatchlist(BuildContext context, HomeViewModel vm) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('MY WATCHLIST', style: VoltTheme.dataStyle.copyWith(fontSize: 10, color: VoltTheme.textMuted)),
+        const SizedBox(height: 8),
+        _buildWatchlistSearch(context, vm),
+        const SizedBox(height: 12),
+        StreamBuilder<List<GridZone>>(
+          stream: vm.watchlistZonesStream,
+          builder: (context, snapshot) {
+            final pinned = snapshot.data ?? [];
+            if (pinned.isEmpty) return const SizedBox.shrink();
+
+            return SizedBox(
               height: 84,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
@@ -152,52 +177,78 @@ class HomeScreen extends StatelessWidget {
                   final accent = isOn ? VoltTheme.neonGreen : VoltTheme.neonRed;
                   final isSelected = z.id == vm.selectedZoneId;
 
-                  return GestureDetector(
-                    onTap: () => vm.selectZone(z.id),
-                    child: Container(
-                      width: 140,
-                      padding: const EdgeInsets.all(12),
-                      decoration: VoltTheme.glassDecoration.copyWith(
-                        border: Border.all(color: isSelected ? VoltTheme.cyberBlue : accent.withValues(alpha: 0.2)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+                  return StreamBuilder<int>(
+                    stream: vm.getFlipCountStream(z.id),
+                    builder: (context, snapshot) {
+                      final flipCount = snapshot.data ?? 0;
+                      return GestureDetector(
+                        onTap: () => vm.selectZone(z.id),
+                        child: Stack(
+                          children: [
+                            Container(
+                              width: 140,
+                              padding: const EdgeInsets.all(12),
+                              decoration: VoltTheme.glassDecoration.copyWith(
+                                border: Border.all(color: isSelected ? VoltTheme.cyberBlue : accent.withValues(alpha: 0.2)),
                               ),
-                              const Spacer(),
-                              GestureDetector(
-                                onTap: () => vm.togglePinnedZone(z.id),
-                                child: Icon(LucideIcons.x, size: 14, color: VoltTheme.textDim),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 8,
+                                        height: 8,
+                                        decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+                                      ),
+                                      const Spacer(),
+                                      GestureDetector(
+                                        onTap: () => vm.togglePinnedZone(z.id),
+                                        child: Icon(LucideIcons.x, size: 14, color: VoltTheme.textDim),
+                                      ),
+                                    ],
+                                  ),
+                                  Text(
+                                    z.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                                  ),
+                                  Text(
+                                    isOn ? 'ON' : 'OFF',
+                                    style: VoltTheme.dataStyle.copyWith(fontSize: 10, color: accent),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          Text(
-                            z.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
-                          ),
-                          Text(
-                            isOn ? 'ON' : 'OFF',
-                            style: VoltTheme.dataStyle.copyWith(fontSize: 10, color: accent),
-                          ),
-                        ],
-                      ),
-                    ),
+                            ),
+                            if (flipCount >= 4)
+                              Positioned(
+                                right: -4,
+                                top: -4,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Text(
+                                    flipCount.toString(),
+                                    style: const TextStyle(color: Colors.white, fontSize: 10),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
                   );
                 },
               ),
-            ),
-          ],
-        );
-      },
+            );
+          },
+        ),
+      ],
     );
   }
 
@@ -227,7 +278,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMainStatusDisplay(BuildContext context, GridZone? zone) {
+  Widget _buildMainStatusDisplay(BuildContext context, GridZone? zone, int reportCount) {
     final isPowerOn = zone?.status == PowerStatus.on;
     final accentColor = isPowerOn ? VoltTheme.neonGreen : VoltTheme.neonRed;
 
@@ -286,7 +337,7 @@ class HomeScreen extends StatelessWidget {
             children: [
               _buildStatusStat('RESTORATION', '2h 15m', LucideIcons.clock),
               Container(width: 1, height: 40, color: VoltTheme.overlay(0.1)),
-              _buildStatusStat('CONFIDENCE', '88%', LucideIcons.shieldCheck),
+              _buildStatusStat('REPORTS', reportCount.toString(), LucideIcons.list),
             ],
           ),
           if (zone != null) ...[

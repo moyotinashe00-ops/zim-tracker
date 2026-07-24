@@ -1,9 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:zim_tracker/models/grid_zone.dart';
 import 'package:zim_tracker/models/outage_report.dart';
 
 class GridRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+
+  String? get userId => _firebaseAuth.currentUser?.uid;
 
   Stream<GridZone> getZone(String zoneId) {
     return _firestore
@@ -14,15 +18,32 @@ class GridRepository {
   }
 
   Future<List<GridZone>> searchZones(String query) async {
-    final snapshot = await _firestore
+    // Search by name
+    final nameSnapshot = await _firestore
         .collection('zones')
         .where('name', isGreaterThanOrEqualTo: query)
         .where('name', isLessThanOrEqualTo: '$query\uf8ff')
         .limit(10)
         .get();
+    // Search by region
+    final regionSnapshot = await _firestore
+        .collection('zones')
+        .where('region', isGreaterThanOrEqualTo: query)
+        .where('region', isLessThanOrEqualTo: '$query\uf8ff')
+        .limit(10)
+        .get();
 
-    return snapshot.docs
-        .map((doc) => GridZone.fromMap(doc.id, doc.data()))
+    // Combine and deduplicate by zone id
+    final Map<String, DocumentSnapshot> docs = {};
+    for (var doc in nameSnapshot.docs) {
+      docs[doc.id] = doc;
+    }
+    for (var doc in regionSnapshot.docs) {
+      docs[doc.id] = doc;
+    }
+
+    return docs.values
+        .map((doc) => GridZone.fromMap(doc.id, doc.data() as Map<String, dynamic>))
         .toList();
   }
 
@@ -81,11 +102,78 @@ class GridRepository {
   }
 
   /// Records a user's vote on whether the AI-simulated status matched
-  /// reality at their location. No per-user vote de-duplication yet --
-  /// this is a lightweight aggregate signal, not an audited poll.
+  /// reality at their location. Uses a transaction to prevent vote spamming
+  /// by checking for existing user votes in a subcollection.
   Future<void> voteZoneAccuracy(String zoneId, bool wasAccurate) async {
-    await _firestore.collection('zones').doc(zoneId).update({
-      wasAccurate ? 'accurateVotes' : 'inaccurateVotes': FieldValue.increment(1),
+    final userId = this.userId;
+    if (userId == null) {
+      // User not signed in - fall back to basic increment (shouldn't happen in practice)
+      await _firestore.collection('zones').doc(zoneId).update({
+        wasAccurate ? 'accurateVotes' : 'inaccurateVotes': FieldValue.increment(1),
+      });
+      return;
+    }
+
+    final zoneDoc = _firestore.collection('zones').doc(zoneId);
+    final userVoteDoc = zoneDoc.collection('votes').doc(userId);
+
+    await _firestore.runTransaction((transaction) async {
+      final userVoteSnap = await transaction.get(userVoteDoc);
+      final zoneSnap = await transaction.get(zoneDoc);
+
+      if (!zoneSnap.exists) {
+        throw Exception('Zone does not exist');
+      }
+
+      final currentData = zoneSnap.data() as Map<String, dynamic>;
+      final currentAccurate = (currentData['accurateVotes'] ?? 0) as int;
+      final currentInaccurate = (currentData['inaccurateVotes'] ?? 0) as int;
+
+      if (userVoteSnap.exists) {
+        // User has voted before - check if they're changing their vote
+        final previousVote = (userVoteSnap.data() as Map<String, dynamic>)['vote'] as bool?;
+        if (previousVote == wasAccurate) {
+          // Same vote as before - no change needed
+          return;
+        } else {
+          // Changed vote - adjust counters
+          if (previousVote == true) {
+                // Was accurate, now inaccurate
+                transaction.update(zoneDoc, {
+                  'accurateVotes': currentAccurate - 1,
+                  'inaccurateVotes': currentInaccurate + 1,
+                });
+              } else {
+                // Was inaccurate, now accurate
+                transaction.update(zoneDoc, {
+                  'accurateVotes': currentAccurate + 1,
+                  'inaccurateVotes': currentInaccurate - 1,
+                });
+              }
+
+          // Update the vote record
+          transaction.update(userVoteDoc, {
+            'vote': wasAccurate,
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+        }
+      } else {
+        // New vote - create vote document and increment counter
+        transaction.set(userVoteDoc, {
+          'vote': wasAccurate,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+
+        if (wasAccurate) {
+          transaction.update(zoneDoc, {
+            'accurateVotes': FieldValue.increment(1),
+          });
+        } else {
+          transaction.update(zoneDoc, {
+            'inaccurateVotes': FieldValue.increment(1),
+          });
+        }
+      }
     });
   }
 

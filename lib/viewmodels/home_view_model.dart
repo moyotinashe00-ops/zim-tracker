@@ -9,6 +9,7 @@ import 'package:zim_tracker/services/live_grid_service.dart';
 import 'package:zim_tracker/services/user_service.dart';
 import 'package:zim_tracker/services/offline_cache_service.dart';
 import 'package:zim_tracker/services/notification_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
@@ -108,9 +109,59 @@ class HomeViewModel extends ChangeNotifier {
   Future<List<GridZone>> getCachedZonesFallback() => _offlineCache.getCachedZones();
   Future<DateTime?> getCachedZonesTimestamp() => _offlineCache.getCachedAt();
 
-  Stream<List<OutageReport>> get recentReportsStream => _gridRepository.getAllReports().map((reports) => 
+  Stream<List<OutageReport>> get recentReportsStream => _gridRepository.getAllReports().map((reports) =>
     reports.where((r) => r.timestamp.isAfter(DateTime.now().subtract(const Duration(hours: 24)))).take(10).toList()
   );
+
+  Stream<int> get communityReportCountStream =>
+      _gridRepository.getAllReports()
+          .map((reports) => reports.length);
+
+  Stream<int> getFlipCountStream(String zoneId) {
+    return _gridRepository.getZoneHistory(zoneId)
+        .map((history) {
+          final now = DateTime.now();
+          final twentyFourHoursAgo = now.subtract(const Duration(hours: 24));
+          return history.where((entry) {
+            final ts = entry['timestamp'] as Timestamp?;
+            return ts != null && ts.toDate().isAfter(twentyFourHoursAgo);
+          }).length;
+        });
+  }
+
+  Stream<List<Map<String, dynamic>>> getRegionLeaderboard() {
+    return _gridRepository.getAllZones()
+        .map((zones) {
+          // Group zones by region
+          final Map<String, List<PowerStatus>> regionZones = {};
+          for (final zone in zones) {
+            if (!regionZones.containsKey(zone.region)) {
+              regionZones[zone.region] = [];
+            }
+            regionZones[zone.region]!.add(zone.status);
+          }
+
+          // Calculate percentage of OFF zones for each region
+          final List<Map<String, dynamic>> regionStats = [];
+          regionZones.forEach((region, statusList) {
+            final totalZones = statusList.length;
+            final offZones = statusList.where((status) => status == PowerStatus.off).length;
+            final offlinePercentage = (totalZones > 0) ? (offZones / totalZones * 100) : 0.0;
+
+            regionStats.add({
+              'region': region,
+              'totalZones': totalZones,
+              'offZones': offZones,
+              'offlinePercentage': offlinePercentage,
+            });
+          });
+
+          // Sort by offline percentage descending (worst hit first)
+          regionStats.sort((a, b) => b['offlinePercentage'].compareTo(a['offlinePercentage']));
+
+          return regionStats;
+        });
+  }
 
   /// Zones the user has pinned via [UserService.toggleFavorite], combined
   /// live with the current grid data. Manual stream combination (no rxdart

@@ -6,6 +6,7 @@ class OutageReport {
   final String zoneId;
   final DateTime timestamp;
   final String? comments;
+  final String? imageUrl; // URL of uploaded image in Firebase Storage
 
   OutageReport({
     required this.id,
@@ -13,6 +14,7 @@ class OutageReport {
     required this.zoneId,
     required this.timestamp,
     this.comments,
+    this.imageUrl,
   });
 
   factory OutageReport.fromFirestore(DocumentSnapshot doc) {
@@ -24,10 +26,11 @@ class OutageReport {
       id: id,
       userId: data['userId'] ?? '',
       zoneId: data['zoneId'] ?? '',
-      timestamp: data['timestamp'] is Timestamp 
-          ? (data['timestamp'] as Timestamp).toDate() 
+      timestamp: data['timestamp'] is Timestamp
+          ? (data['timestamp'] as Timestamp).toDate()
           : DateTime.now(),
       comments: data['comments'],
+      imageUrl: data['imageUrl'],
     );
   }
 
@@ -37,6 +40,7 @@ class OutageReport {
       'zoneId': zoneId,
       'timestamp': timestamp,
       'comments': comments,
+      'imageUrl': imageUrl,
     };
   }
 
@@ -46,6 +50,7 @@ class OutageReport {
       'zoneId': zoneId,
       'timestamp': Timestamp.fromDate(timestamp),
       'comments': comments,
+      'imageUrl': imageUrl,
     };
   }
 }

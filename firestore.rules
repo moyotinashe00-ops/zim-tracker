@@ -21,6 +21,10 @@ service cloud.firestore {
       match /history/{entryId} {
         allow read, write: if isAuthenticated();
       }
+      // Votes: individual user votes on zone accuracy
+      match /votes/{userId} {
+        allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      }
     }
     // Reports: Community telemetry
     match /reports/{reportId} {

@@ -53,13 +53,33 @@ class FirestoreService {
   }
 
   Future<List<GridZone>> searchZones(String query) async {
-    final snapshot = await _db
+    // Search by name
+    final nameSnapshot = await _db
         .collection('zones')
         .where('name', isGreaterThanOrEqualTo: query)
         .where('name', isLessThanOrEqualTo: '$query\uf8ff')
         .limit(5)
         .get();
-    return snapshot.docs.map((doc) => GridZone.fromFirestore(doc)).toList();
+    // Search by region
+    final regionSnapshot = await _db
+        .collection('zones')
+        .where('region', isGreaterThanOrEqualTo: query)
+        .where('region', isLessThanOrEqualTo: '$query\uf8ff')
+        .limit(5)
+        .get();
+
+    // Combine and deduplicate by zone id
+    final Map<String, DocumentSnapshot> docs = {};
+    for (var doc in nameSnapshot.docs) {
+      docs[doc.id] = doc;
+    }
+    for (var doc in regionSnapshot.docs) {
+      docs[doc.id] = doc;
+    }
+
+    return docs.values
+        .map((doc) => GridZone.fromFirestore(doc))
+        .toList();
   }
 
   Future<void> reportOutage(OutageReport report) {

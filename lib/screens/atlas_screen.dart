@@ -54,11 +54,37 @@ class _AtlasScreenState extends State<AtlasScreen> with SingleTickerProviderStat
       backgroundColor: VoltTheme.obsidian,
       body: Stack(
         children: [
+          // Search Bar
+          Positioned(
+            top: 20,
+            left: 20,
+            right: 20,
+            child: Container(
+              decoration: VoltTheme.glassDecoration,
+              child: TextField(
+                onChanged: (query) => model.search(query),
+                decoration: InputDecoration(
+                  hintText: 'Search zones by name or region...',
+                  hintStyle: TextStyle(color: VoltTheme.textMuted),
+                  prefixIcon: Icon(LucideIcons.search, color: VoltTheme.textMuted),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  suffixIcon: model.isSearching
+                      ? Icon(LucideIcons.x, color: VoltTheme.textMuted, size: 16)
+                      : null,
+                ),
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ),
+
           StreamBuilder<List<GridZone>>(
             stream: model.allZonesStream,
             builder: (context, snapshot) {
-              final zones = snapshot.data ?? [];
-              
+              final zones = model.isSearching && model.searchResults.isNotEmpty
+                  ? model.searchResults
+                  : (snapshot.data ?? []);
+
               return FlutterMap(
                 options: MapOptions(
                   initialCenter: const LatLng(-18.8792, 29.8297),
@@ -88,7 +114,7 @@ class _AtlasScreenState extends State<AtlasScreen> with SingleTickerProviderStat
           
           // Overlay Header
           Positioned(
-            top: 60,
+            top: 100,
             left: 20,
             right: 20,
             child: Row(
@@ -139,7 +165,7 @@ class _AtlasScreenState extends State<AtlasScreen> with SingleTickerProviderStat
 
           // Intelligence Card
           Positioned(
-            top: 130,
+            top: 170,
             left: 20,
             right: 20,
             child: Container(

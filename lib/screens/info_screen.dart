@@ -6,6 +6,10 @@ import 'package:zim_tracker/services/firestore_service.dart';
 import 'package:zim_tracker/models/grid_zone.dart';
 import 'package:zim_tracker/models/outage_report.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:uuid/uuid.dart';
+import 'dart:io';
 
 class InfoScreen extends StatefulWidget {
   const InfoScreen({super.key});
@@ -18,6 +22,8 @@ class _InfoScreenState extends State<InfoScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   final TextEditingController _reportController = TextEditingController();
   String? _selectedZoneId;
+  File? _selectedImage;
+  bool _isUploading = false;
 
   Future<void> _launch(String url) async {
     final uri = Uri.parse(url);
@@ -37,19 +43,67 @@ class _InfoScreenState extends State<InfoScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
+    setState(() => _isUploading = true);
+
+    String? imageUrl;
+    if (_selectedImage != null) {
+      try {
+        final uuid = Uuid();
+        final ref = FirebaseStorage.instance
+            .ref()
+            .child('report_images')
+            .child('${DateTime.now().millisecondsSinceEpoch}_${uuid.v4()}.jpg');
+
+        await ref.putFile(_selectedImage!);
+        imageUrl = await ref.getDownloadURL();
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isUploading = false);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('IMAGE UPLOAD FAILED: ${e.toString()}')));
+        }
+        return;
+      }
+    }
+
     final report = OutageReport(
       id: '',
       userId: user.uid,
       zoneId: _selectedZoneId!,
       timestamp: DateTime.now(),
       comments: _reportController.text,
+      imageUrl: imageUrl,
     );
 
     await _firestoreService.reportOutage(report);
-    
+
     if (mounted) {
       _reportController.clear();
+      setState(() {
+        _selectedImage = null;
+        _isUploading = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('INTEL LOGGED: REPORT SUBMITTED FOR VERIFICATION')));
+    }
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final pickedFile = await ImagePicker().pickImage(
+        source: source,
+        imageQuality: 85,
+        maxWidth: 1024,
+        maxHeight: 1024,
+      );
+
+      if (pickedFile != null) {
+        setState(() {
+          _selectedImage = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('ERROR PICKING IMAGE: ${e.toString()}')));
+      }
     }
   }
 
@@ -178,29 +232,91 @@ class _InfoScreenState extends State<InfoScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _submitReport,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: VoltTheme.neonRed.withValues(alpha: 0.1),
-                foregroundColor: VoltTheme.neonRed,
-                side: BorderSide(color: VoltTheme.neonRed, width: 1),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+
+              // Image Preview and Controls
+              if (_selectedImage != null || _isUploading) ...[
+                SizedBox(height: 16),
+                _isUploading
+                    ? LinearProgressIndicator(
+                        color: VoltTheme.neonRed,
+                      )
+                    : Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: VoltTheme.overlay(0.2)),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(
+                            _selectedImage!,
+                            height: 150,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildImageButton(LucideIcons.camera, 'Take Photo', ImageSource.camera),
+                    _buildImageButton(LucideIcons.image, 'Choose Photo', ImageSource.gallery),
+                    if (_selectedImage != null)
+                      TextButton.icon(
+                        onPressed: () => setState(() => _selectedImage = null),
+                        icon: const Icon(LucideIcons.x, size: 16),
+                        label: Text('REMOVE IMAGE', style: TextStyle(color: VoltTheme.textMuted, fontSize: 12)),
+                      ),
+                  ],
+                ),
+              ],
+            SizedBox(height: 20),
+
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isUploading ? null : _submitReport,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: VoltTheme.neonRed.withValues(alpha: 0.1),
+                  foregroundColor: VoltTheme.neonRed,
+                  side: BorderSide(color: VoltTheme.neonRed, width: 1),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: _isUploading
+                    ? SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: VoltTheme.neonRed,
+                        ),
+                      )
+                    : Text('LOG GRID FAILURE', style: VoltTheme.dataStyle.copyWith(fontSize: 12, fontWeight: FontWeight.bold)),
               ),
-              child: Text('LOG GRID FAILURE', style: VoltTheme.dataStyle.copyWith(fontSize: 12, fontWeight: FontWeight.bold)),
             ),
-          ),
-          const SizedBox(height: 32),
-          Row(
-            children: [
-              _buildReportIcon(LucideIcons.phone, 'Call ZETDC', () => _launch('tel:+263242700001')),
-              const SizedBox(width: 12),
-              _buildReportIcon(LucideIcons.messageSquare, 'Official Portal', () => _launch('https://selfservice.zetdc.co.zw/')),
-            ],
-          ),
-        ],
+            const SizedBox(height: 32),
+            Row(
+              children: [
+                _buildReportIcon(LucideIcons.phone, 'Call ZETDC', () => _launch('tel:+263242700001')),
+                const SizedBox(width: 12),
+                _buildReportIcon(LucideIcons.messageSquare, 'Official Portal', () => _launch('https://selfservice.zetdc.co.zw/')),
+              ],
+            ),
+          ],
+        ),
+      );
+  }
+
+  Widget _buildImageButton(IconData icon, String label, ImageSource source) {
+    return ElevatedButton.icon(
+      onPressed: () => _pickImage(source),
+      icon: Icon(icon, size: 18),
+      label: Text(label, style: const TextStyle(fontSize: 12)),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: VoltTheme.slate,
+        foregroundColor: VoltTheme.textMain,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
     );
   }

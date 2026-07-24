@@ -1,9 +1,10 @@
+import 'dart:async';
+
+import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:zim_tracker/theme/volt_theme.dart';
 import 'package:torch_light/torch_light.dart';
-import 'package:battery_plus/battery_plus.dart';
-import 'dart:async';
+import 'package:zim_tracker/theme/volt_theme.dart';
 
 class ToolsScreen extends StatefulWidget {
   const ToolsScreen({super.key});
@@ -19,16 +20,23 @@ class _ToolsScreenState extends State<ToolsScreen> {
   // Backup Power Calculator state
   String _backupMode = 'generator'; // 'generator' or 'inverter'
   final TextEditingController _tankLitersController = TextEditingController();
-  final TextEditingController _consumptionLphController = TextEditingController();
+  final TextEditingController _consumptionLphController =
+      TextEditingController();
   final TextEditingController _batteryAhController = TextEditingController();
   final TextEditingController _loadWattsController = TextEditingController();
   double? _backupRuntimeHours;
-  
+
   double _calculatedUnits = 0.0;
   bool _isTorchOn = false;
   int _batteryLevel = 100;
   BatteryState _batteryState = BatteryState.unknown;
   StreamSubscription? _batterySubscription;
+
+  // Water Pump Runtime state
+  final TextEditingController _pumpWattageController = TextEditingController();
+  final TextEditingController _pumpBatteryAhController =
+      TextEditingController();
+  double? _pumpRuntimeHours;
 
   // Sample ZESA Tiered Pricing
   final List<Map<String, dynamic>> _tiers = [
@@ -71,8 +79,11 @@ class _ToolsScreenState extends State<ToolsScreen> {
   void _calculateBackupRuntime() {
     if (_backupMode == 'generator') {
       final tank = double.tryParse(_tankLitersController.text) ?? 0.0;
-      final consumption = double.tryParse(_consumptionLphController.text) ?? 0.0;
-      setState(() => _backupRuntimeHours = consumption > 0 ? tank / consumption : null);
+      final consumption =
+          double.tryParse(_consumptionLphController.text) ?? 0.0;
+      setState(
+        () => _backupRuntimeHours = consumption > 0 ? tank / consumption : null,
+      );
     } else {
       final ah = double.tryParse(_batteryAhController.text) ?? 0.0;
       final watts = double.tryParse(_loadWattsController.text) ?? 0.0;
@@ -80,7 +91,11 @@ class _ToolsScreenState extends State<ToolsScreen> {
       // (typical for budget modified-sine inverters common locally).
       const voltage = 12.0;
       const efficiency = 0.85;
-      setState(() => _backupRuntimeHours = watts > 0 ? (ah * voltage * efficiency) / watts : null);
+      setState(
+        () => _backupRuntimeHours = watts > 0
+            ? (ah * voltage * efficiency) / watts
+            : null,
+      );
     }
   }
 
@@ -121,7 +136,9 @@ class _ToolsScreenState extends State<ToolsScreen> {
       setState(() => _isTorchOn = !_isTorchOn);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('HARDWARE FAILURE: TORCH UNAVAILABLE')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('HARDWARE FAILURE: TORCH UNAVAILABLE')),
+        );
       }
     }
   }
@@ -145,6 +162,8 @@ class _ToolsScreenState extends State<ToolsScreen> {
               _buildBackupCalculatorCard(),
               const SizedBox(height: 24),
               _buildSolarEstimatorCard(),
+              const SizedBox(height: 24),
+              _buildEmergencyContactsCard(),
               const SizedBox(height: 30),
             ],
           ),
@@ -159,11 +178,18 @@ class _ToolsScreenState extends State<ToolsScreen> {
       children: [
         Text(
           'UTILITY HUB',
-          style: VoltTheme.dataStyle.copyWith(letterSpacing: 4, fontSize: 18, color: Colors.white),
+          style: VoltTheme.dataStyle.copyWith(
+            letterSpacing: 4,
+            fontSize: 18,
+            color: Colors.white,
+          ),
         ),
         Text(
           'GRID SURVIVAL TOOLS',
-          style: VoltTheme.dataStyle.copyWith(fontSize: 8, color: VoltTheme.cyberBlue),
+          style: VoltTheme.dataStyle.copyWith(
+            fontSize: 8,
+            color: VoltTheme.cyberBlue,
+          ),
         ),
       ],
     );
@@ -171,7 +197,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
 
   Widget _buildSurvivalKit() {
     final isCharging = _batteryState == BatteryState.charging;
-    
+
     return Row(
       children: [
         Expanded(
@@ -186,10 +212,16 @@ class _ToolsScreenState extends State<ToolsScreen> {
         const SizedBox(width: 16),
         Expanded(
           child: _buildKitTile(
-            icon: isCharging ? LucideIcons.batteryCharging : LucideIcons.batteryMedium,
+            icon: isCharging
+                ? LucideIcons.batteryCharging
+                : LucideIcons.batteryMedium,
             label: 'POWER RESERVE',
             value: '$_batteryLevel%',
-            color: isCharging ? VoltTheme.neonGreen : (_batteryLevel < 20 ? VoltTheme.neonRed : VoltTheme.cyberBlue),
+            color: isCharging
+                ? VoltTheme.neonGreen
+                : (_batteryLevel < 20
+                      ? VoltTheme.neonRed
+                      : VoltTheme.cyberBlue),
             onTap: () {},
           ),
         ),
@@ -214,9 +246,18 @@ class _ToolsScreenState extends State<ToolsScreen> {
           children: [
             Icon(icon, color: color, size: 24),
             const SizedBox(height: 16),
-            Text(label, style: VoltTheme.dataStyle.copyWith(fontSize: 8, color: VoltTheme.textMuted)),
+            Text(
+              label,
+              style: VoltTheme.dataStyle.copyWith(
+                fontSize: 8,
+                color: VoltTheme.textMuted,
+              ),
+            ),
             const SizedBox(height: 4),
-            Text(value, style: VoltTheme.dataStyle.copyWith(fontSize: 16, color: color)),
+            Text(
+              value,
+              style: VoltTheme.dataStyle.copyWith(fontSize: 16, color: color),
+            ),
           ],
         ),
       ),
@@ -232,24 +273,46 @@ class _ToolsScreenState extends State<ToolsScreen> {
         children: [
           Row(
             children: [
-              Icon(LucideIcons.calculator, color: VoltTheme.cyberBlue, size: 20),
+              Icon(
+                LucideIcons.calculator,
+                color: VoltTheme.cyberBlue,
+                size: 20,
+              ),
               const SizedBox(width: 12),
-              Text('TOKEN CONVERSION', style: VoltTheme.dataStyle.copyWith(fontSize: 14)),
+              Text(
+                'TOKEN CONVERSION',
+                style: VoltTheme.dataStyle.copyWith(fontSize: 14),
+              ),
             ],
           ),
           const SizedBox(height: 24),
-          Text('CREDIT AMOUNT (USD)', style: VoltTheme.dataStyle.copyWith(fontSize: 8, color: VoltTheme.textMuted)),
+          Text(
+            'CREDIT AMOUNT (USD)',
+            style: VoltTheme.dataStyle.copyWith(
+              fontSize: 8,
+              color: VoltTheme.textMuted,
+            ),
+          ),
           const SizedBox(height: 12),
           TextField(
             controller: _amountController,
             keyboardType: TextInputType.number,
-            style: VoltTheme.dataStyle.copyWith(color: Colors.white, fontSize: 24),
+            style: VoltTheme.dataStyle.copyWith(
+              color: Colors.white,
+              fontSize: 24,
+            ),
             onChanged: (v) => _calculateUnits(),
             decoration: InputDecoration(
               hintText: '0.00',
               hintStyle: TextStyle(color: VoltTheme.textDim),
-              prefixIcon: Icon(LucideIcons.dollarSign, color: VoltTheme.cyberBlue, size: 18),
-              border: UnderlineInputBorder(borderSide: BorderSide(color: VoltTheme.overlay(0.1))),
+              prefixIcon: Icon(
+                LucideIcons.dollarSign,
+                color: VoltTheme.cyberBlue,
+                size: 18,
+              ),
+              border: UnderlineInputBorder(
+                borderSide: BorderSide(color: VoltTheme.overlay(0.1)),
+              ),
             ),
           ),
           const SizedBox(height: 32),
@@ -262,10 +325,19 @@ class _ToolsScreenState extends State<ToolsScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('ESTIMATED YIELD', style: VoltTheme.dataStyle.copyWith(fontSize: 10, color: VoltTheme.textMuted)),
+                Text(
+                  'ESTIMATED YIELD',
+                  style: VoltTheme.dataStyle.copyWith(
+                    fontSize: 10,
+                    color: VoltTheme.textMuted,
+                  ),
+                ),
                 Text(
                   '${_calculatedUnits.toStringAsFixed(1)} kWh',
-                  style: VoltTheme.dataStyle.copyWith(color: VoltTheme.neonGreen, fontSize: 24),
+                  style: VoltTheme.dataStyle.copyWith(
+                    color: VoltTheme.neonGreen,
+                    fontSize: 24,
+                  ),
                 ),
               ],
             ),
@@ -288,7 +360,10 @@ class _ToolsScreenState extends State<ToolsScreen> {
             children: [
               Icon(LucideIcons.fuel, color: VoltTheme.cyberBlue, size: 20),
               const SizedBox(width: 12),
-              Text('BACKUP POWER RUNTIME', style: VoltTheme.dataStyle.copyWith(fontSize: 14)),
+              Text(
+                'BACKUP POWER RUNTIME',
+                style: VoltTheme.dataStyle.copyWith(fontSize: 14),
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -304,24 +379,44 @@ class _ToolsScreenState extends State<ToolsScreen> {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _buildModeToggleButton('INVERTER/BATTERY', !isGenerator, () {
-                  setState(() {
-                    _backupMode = 'inverter';
-                    _backupRuntimeHours = null;
-                  });
-                }),
+                child: _buildModeToggleButton(
+                  'INVERTER/BATTERY',
+                  !isGenerator,
+                  () {
+                    setState(() {
+                      _backupMode = 'inverter';
+                      _backupRuntimeHours = null;
+                    });
+                  },
+                ),
               ),
             ],
           ),
           const SizedBox(height: 24),
           if (isGenerator) ...[
-            _buildBackupField('FUEL TANK SIZE (LITRES)', _tankLitersController, LucideIcons.fuel),
+            _buildBackupField(
+              'FUEL TANK SIZE (LITRES)',
+              _tankLitersController,
+              LucideIcons.fuel,
+            ),
             const SizedBox(height: 16),
-            _buildBackupField('CONSUMPTION RATE (LITRES/HR)', _consumptionLphController, LucideIcons.gauge),
+            _buildBackupField(
+              'CONSUMPTION RATE (LITRES/HR)',
+              _consumptionLphController,
+              LucideIcons.gauge,
+            ),
           ] else ...[
-            _buildBackupField('BATTERY CAPACITY (Ah)', _batteryAhController, LucideIcons.batteryFull),
+            _buildBackupField(
+              'BATTERY CAPACITY (Ah)',
+              _batteryAhController,
+              LucideIcons.batteryFull,
+            ),
             const SizedBox(height: 16),
-            _buildBackupField('LOAD DRAW (WATTS)', _loadWattsController, LucideIcons.plug),
+            _buildBackupField(
+              'LOAD DRAW (WATTS)',
+              _loadWattsController,
+              LucideIcons.plug,
+            ),
             const SizedBox(height: 8),
             Text(
               'Assumes a standard 12V battery bank at ~85% inverter efficiency.',
@@ -338,10 +433,21 @@ class _ToolsScreenState extends State<ToolsScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('ESTIMATED RUNTIME', style: VoltTheme.dataStyle.copyWith(fontSize: 10, color: VoltTheme.textMuted)),
                 Text(
-                  _backupRuntimeHours != null ? '${_backupRuntimeHours!.toStringAsFixed(1)} hrs' : '--',
-                  style: VoltTheme.dataStyle.copyWith(color: VoltTheme.neonGreen, fontSize: 24),
+                  'ESTIMATED RUNTIME',
+                  style: VoltTheme.dataStyle.copyWith(
+                    fontSize: 10,
+                    color: VoltTheme.textMuted,
+                  ),
+                ),
+                Text(
+                  _backupRuntimeHours != null
+                      ? '${_backupRuntimeHours!.toStringAsFixed(1)} hrs'
+                      : '--',
+                  style: VoltTheme.dataStyle.copyWith(
+                    color: VoltTheme.neonGreen,
+                    fontSize: 24,
+                  ),
                 ),
               ],
             ),
@@ -351,41 +457,67 @@ class _ToolsScreenState extends State<ToolsScreen> {
     );
   }
 
-  Widget _buildModeToggleButton(String label, bool isActive, VoidCallback onTap) {
+  Widget _buildModeToggleButton(
+    String label,
+    bool isActive,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: isActive ? VoltTheme.cyberBlue.withValues(alpha: 0.15) : VoltTheme.overlay(0.03),
+          color: isActive
+              ? VoltTheme.cyberBlue.withValues(alpha: 0.15)
+              : VoltTheme.overlay(0.03),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: isActive ? VoltTheme.cyberBlue : VoltTheme.overlay(0.1)),
+          border: Border.all(
+            color: isActive ? VoltTheme.cyberBlue : VoltTheme.overlay(0.1),
+          ),
         ),
         alignment: Alignment.center,
         child: Text(
           label,
-          style: VoltTheme.dataStyle.copyWith(fontSize: 10, color: isActive ? VoltTheme.cyberBlue : VoltTheme.textMuted),
+          style: VoltTheme.dataStyle.copyWith(
+            fontSize: 10,
+            color: isActive ? VoltTheme.cyberBlue : VoltTheme.textMuted,
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildBackupField(String label, TextEditingController controller, IconData icon) {
+  Widget _buildBackupField(
+    String label,
+    TextEditingController controller,
+    IconData icon,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: VoltTheme.dataStyle.copyWith(fontSize: 8, color: VoltTheme.textMuted)),
+        Text(
+          label,
+          style: VoltTheme.dataStyle.copyWith(
+            fontSize: 8,
+            color: VoltTheme.textMuted,
+          ),
+        ),
         const SizedBox(height: 8),
         TextField(
           controller: controller,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          style: VoltTheme.dataStyle.copyWith(color: Colors.white, fontSize: 18),
+          style: VoltTheme.dataStyle.copyWith(
+            color: Colors.white,
+            fontSize: 18,
+          ),
           onChanged: (v) => _calculateBackupRuntime(),
           decoration: InputDecoration(
             hintText: '0',
             hintStyle: TextStyle(color: VoltTheme.textDim),
             prefixIcon: Icon(icon, color: VoltTheme.cyberBlue, size: 16),
-            border: UnderlineInputBorder(borderSide: BorderSide(color: VoltTheme.overlay(0.1))),
+            border: UnderlineInputBorder(
+              borderSide: BorderSide(color: VoltTheme.overlay(0.1)),
+            ),
           ),
         ),
       ],
@@ -408,20 +540,36 @@ class _ToolsScreenState extends State<ToolsScreen> {
                 children: [
                   Icon(LucideIcons.sun, color: VoltTheme.amber, size: 20),
                   const SizedBox(width: 12),
-                  Text('PHOTOVOLTAIC ROI', style: VoltTheme.dataStyle.copyWith(fontSize: 14)),
+                  Text(
+                    'PHOTOVOLTAIC ROI',
+                    style: VoltTheme.dataStyle.copyWith(fontSize: 14),
+                  ),
                 ],
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: VoltTheme.amber.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-                child: Text('BETA', style: VoltTheme.dataStyle.copyWith(color: VoltTheme.amber, fontSize: 8)),
+                decoration: BoxDecoration(
+                  color: VoltTheme.amber.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'BETA',
+                  style: VoltTheme.dataStyle.copyWith(
+                    color: VoltTheme.amber,
+                    fontSize: 8,
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 16),
           Text(
             'Calculate payback periods and energy independence forecasts for local solar installations.',
-            style: TextStyle(color: VoltTheme.textMuted, fontSize: 13, height: 1.5),
+            style: TextStyle(
+              color: VoltTheme.textMuted,
+              fontSize: 13,
+              height: 1.5,
+            ),
           ),
           const SizedBox(height: 24),
           SizedBox(
@@ -431,13 +579,107 @@ class _ToolsScreenState extends State<ToolsScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: VoltTheme.overlay(0.1),
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-              child: Text('INITIALIZE SOLAR WIZARD', style: VoltTheme.dataStyle.copyWith(fontSize: 12, color: Colors.white)),
+              child: Text(
+                'INITIALIZE SOLAR WIZARD',
+                style: VoltTheme.dataStyle.copyWith(
+                  fontSize: 12,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildEmergencyContactsCard() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: VoltTheme.glassDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(LucideIcons.phoneCall, color: VoltTheme.neonRed, size: 20),
+              const SizedBox(width: 12),
+              Text(
+                'EMERGENCY CONTACTS',
+                style: VoltTheme.dataStyle.copyWith(fontSize: 14),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          _buildContactItem(
+            LucideIcons.phoneCall,
+            'ZETDC Fault Line',
+            '+263 4 700 001',
+            VoltTheme.neonRed,
+          ),
+          const SizedBox(height: 12),
+          _buildContactItem(
+            LucideIcons.phoneCall,
+            'Medical Emergency',
+            '999',
+            VoltTheme.neonGreen,
+          ),
+          const SizedBox(height: 12),
+          _buildContactItem(
+            LucideIcons.phoneCall,
+            'Police',
+            '999',
+            VoltTheme.cyberBlue,
+          ),
+          const SizedBox(height: 12),
+          _buildContactItem(
+            LucideIcons.messageSquare,
+            'WhatsApp Support',
+            '+263 77 123 4567',
+            VoltTheme.cyberBlue,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContactItem(
+    IconData icon,
+    String label,
+    String value,
+    Color color,
+  ) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: VoltTheme.dataStyle.copyWith(
+                  fontSize: 10,
+                  color: VoltTheme.textMuted,
+                ),
+              ),
+              Text(
+                value,
+                style: VoltTheme.dataStyle.copyWith(
+                  fontSize: 12,
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

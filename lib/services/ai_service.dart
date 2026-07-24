@@ -1,40 +1,17 @@
 import 'dart:convert';
 import 'dart:developer' as dev;
+
 import 'package:firebase_ai/firebase_ai.dart';
 import 'package:zim_tracker/models/grid_zone.dart';
 
 /// Simulated status for a single zone, produced by [AIService.simulateNationalGrid].
 class SimulatedZoneStatus {
   final PowerStatus status;
-  final int? etaMinutes; // Minutes until restoration, only meaningful when status == off.
+  final int?
+  etaMinutes; // Minutes until restoration, only meaningful when status == off.
   SimulatedZoneStatus(this.status, this.etaMinutes);
 }
 
-/// Volt AI service, routed through Firebase AI Logic.
-///
-/// This calls Gemini via `FirebaseAI.googleAI()` — the Gemini Developer API
-/// backend, which has a free tier and does NOT require the project to be on
-/// the Blaze billing plan. (The alternative, `FirebaseAI.vertexAI()`, does
-/// require Blaze — we're deliberately not using that here.)
-///
-/// No API key lives in this app at all. Auth flows through the Firebase
-/// project config already loaded via `firebase_options.dart` /
-/// `Firebase.initializeApp()` in main.dart. This replaces the old
-/// direct-`google_generative_ai`-with-a-raw-key approach (which broke when
-/// Google switched new keys to the `AQ.` Auth-key format in June 2026, and
-/// which risked the key leaking from a decompiled APK/IPA regardless).
-///
-/// ONE-TIME SETUP REQUIRED (per Firebase project, not per developer):
-/// In the Firebase Console, go to Build > AI Logic, and enable the
-/// "Gemini Developer API" backend for this project if it isn't already.
-/// This is free — separate from enabling Blaze.
-///
-/// Free-tier limits still apply (roughly 10-15 requests/minute, ~1,500/day
-/// for Flash-class models as of mid-2026 — check live figures for your
-/// project in Firebase Console / AI Studio). All model tiers below are
-/// Flash-class for that reason. simulateNationalGrid() covers all zones in
-/// one call, so normal single-user testing stays well within limits. Avoid
-/// adding a loop that calls inferStatusForCoordinate() per-zone instead.
 class AIService {
   final List<String> _modelTiers = [
     'gemini-3.5-flash',
@@ -59,7 +36,9 @@ class AIService {
   bool _fallbackToNextModel() {
     if (_currentModelIndex + 1 < _modelTiers.length) {
       _currentModelIndex++;
-      dev.log('VOLT AI: Model unavailable/failing. Falling back to "${_modelTiers[_currentModelIndex]}".');
+      dev.log(
+        'VOLT AI: Model unavailable/failing. Falling back to "${_modelTiers[_currentModelIndex]}".',
+      );
       _initActiveModel();
       return true;
     }
@@ -68,7 +47,8 @@ class AIService {
 
   /// Ingests raw ZETDC notice text and returns a structured JSON map.
   Future<Map<String, dynamic>?> parseZetdcNotice(String text) async {
-    final prompt = '''
+    final prompt =
+        '''
     Return ONLY a JSON object representing the ZETDC load shedding notice.
     DO NOT include conversational text or markdown.
 
@@ -89,25 +69,35 @@ class AIService {
     $text
     ''';
 
-    return await _executeWithResilience((model) => _generateAndParse([Content.text(prompt)], model));
+    return await _executeWithResilience(
+      (model) => _generateAndParse([Content.text(prompt)], model),
+    );
   }
 
   /// Generates a predictive forecast for grid stability.
-  Future<String> getGridForecast(double generation, double demand, String stage) async {
+  Future<String> getGridForecast(
+    double generation,
+    double demand,
+    String stage,
+  ) async {
     final prompt =
         'Given current generation of ${generation}MW against a demand of ${demand}MW at Stage $stage, '
         'provide a 1-sentence grid stability forecast for a Zimbabwean user. This is a simulation, not live official data.';
 
     return await _executeWithResilience((model) async {
           final response = await model.generateContent([Content.text(prompt)]);
-          return response.text ?? 'Stability expected to remain consistent with current schedule.';
+          return response.text ??
+              'Stability expected to remain consistent with current schedule.';
         }) ??
         'Forecast telemetry currently unavailable.';
   }
 
   /// Provides a strategic overview of the national grid status.
   Future<String> getMapIntelligenceSummary(List<GridZone> zones) async {
-    final offZones = zones.where((z) => z.status == PowerStatus.off).map((z) => z.name).join(', ');
+    final offZones = zones
+        .where((z) => z.status == PowerStatus.off)
+        .map((z) => z.name)
+        .join(', ');
     final prompt =
         'Analyze these Zimbabwean suburbs currently simulated as without power: $offZones. '
         'Provide a 1-sentence strategic summary of the simulated national grid health and where the '
@@ -123,11 +113,16 @@ class AIService {
   /// Simulates ON/OFF status (and, if OFF, an ETA in minutes) for every
   /// node in a single call, so the whole country populates consistently
   /// in one pass instead of one request per zone.
-  Future<Map<String, SimulatedZoneStatus>> simulateNationalGrid(List<GridZone> zones) async {
+  Future<Map<String, SimulatedZoneStatus>> simulateNationalGrid(
+    List<GridZone> zones,
+  ) async {
     if (zones.isEmpty) return {};
 
-    final nodeInfo = zones.map((z) => 'ID: ${z.id}, Name: ${z.name}, Region: ${z.region}').join('\n');
-    final prompt = '''
+    final nodeInfo = zones
+        .map((z) => 'ID: ${z.id}, Name: ${z.name}, Region: ${z.region}')
+        .join('\n');
+    final prompt =
+        '''
     Current Zimbabwe Time: ${DateTime.now().toIso8601String()}.
     You are SIMULATING a realistic Zimbabwean power grid status (ZETDC-style rotational
     load shedding under a generation deficit), for demo purposes. This is not live data.
@@ -144,7 +139,9 @@ class AIService {
     {"nodes": [{"id": "node_id_from_list", "status": "ON", "etaMinutes": 0}]}
     ''';
 
-    final data = await _executeWithResilience((model) => _generateAndParse([Content.text(prompt)], model));
+    final data = await _executeWithResilience(
+      (model) => _generateAndParse([Content.text(prompt)], model),
+    );
     if (data == null) return {};
 
     final List nodes = data['nodes'] ?? [];
@@ -155,7 +152,9 @@ class AIService {
       final id = n['id']?.toString();
       if (id == null || !validIds.contains(id)) continue;
       final status = n['status'] == 'ON' ? PowerStatus.on : PowerStatus.off;
-      final eta = status == PowerStatus.off ? (n['etaMinutes'] as num?)?.toInt() : null;
+      final eta = status == PowerStatus.off
+          ? (n['etaMinutes'] as num?)?.toInt()
+          : null;
       results[id] = SimulatedZoneStatus(status, eta);
     }
     return results;
@@ -175,7 +174,10 @@ class AIService {
   }
 
   /// Resilient execution wrapper with tiered model fallback.
-  Future<T?> _executeWithResilience<T>(Future<T?> Function(GenerativeModel model) action, {int depth = 0}) async {
+  Future<T?> _executeWithResilience<T>(
+    Future<T?> Function(GenerativeModel model) action, {
+    int depth = 0,
+  }) async {
     if (depth > _modelTiers.length) {
       dev.log('VOLT AI: Maximum resilience depth reached. Aborting request.');
       return null;
@@ -184,7 +186,9 @@ class AIService {
     try {
       final result = await action(_activeModel);
       if (result == null) {
-        dev.log('VOLT AI: Action returned null on model "${_modelTiers[_currentModelIndex]}". Attempting fallback.');
+        dev.log(
+          'VOLT AI: Action returned null on model "${_modelTiers[_currentModelIndex]}". Attempting fallback.',
+        );
         if (_fallbackToNextModel()) {
           return await _executeWithResilience(action, depth: depth + 1);
         }
@@ -192,7 +196,9 @@ class AIService {
       return result;
     } catch (e) {
       final errorStr = e.toString().toLowerCase();
-      dev.log('VOLT AI Service Exception [Model: ${_modelTiers[_currentModelIndex]}]: $e');
+      dev.log(
+        'VOLT AI Service Exception [Model: ${_modelTiers[_currentModelIndex]}]: $e',
+      );
 
       if (errorStr.contains('503') ||
           errorStr.contains('unavailable') ||
@@ -209,12 +215,18 @@ class AIService {
         }
       }
 
-      dev.log('VOLT AI: Terminal failure for this request logic path.', error: e);
+      dev.log(
+        'VOLT AI: Terminal failure for this request logic path.',
+        error: e,
+      );
       return null;
     }
   }
 
-  Future<Map<String, dynamic>?> _generateAndParse(List<Content> content, GenerativeModel model) async {
+  Future<Map<String, dynamic>?> _generateAndParse(
+    List<Content> content,
+    GenerativeModel model,
+  ) async {
     final response = await model.generateContent(content);
     return _extractAndParseJson(response.text);
   }
@@ -222,7 +234,10 @@ class AIService {
   Map<String, dynamic>? _extractAndParseJson(String? text) {
     if (text == null) return null;
 
-    String sanitized = text.replaceAll('```json', '').replaceAll('```', '').trim();
+    String sanitized = text
+        .replaceAll('```json', '')
+        .replaceAll('```', '')
+        .trim();
 
     try {
       int start = sanitized.indexOf('{');
