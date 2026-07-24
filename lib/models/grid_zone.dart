@@ -12,6 +12,19 @@ class GridZone {
   final double latitude;
   final double longitude;
   final String suburbCode; // ZETDC Suburb Code (e.g., H1, B12)
+  final int accurateVotes;
+  final int inaccurateVotes;
+
+  /// Percentage of votes saying the AI-simulated status matched reality,
+  /// or null if nobody has voted yet (so the UI can distinguish "no data"
+  /// from "0% accurate").
+  double? get accuracyPercent {
+    final total = accurateVotes + inaccurateVotes;
+    if (total == 0) return null;
+    return (accurateVotes / total) * 100;
+  }
+
+  int get totalVotes => accurateVotes + inaccurateVotes;
 
   GridZone({
     required this.id,
@@ -23,6 +36,8 @@ class GridZone {
     this.latitude = -17.8216,
     this.longitude = 31.0492,
     this.suburbCode = '',
+    this.accurateVotes = 0,
+    this.inaccurateVotes = 0,
   });
 
   factory GridZone.fromFirestore(DocumentSnapshot doc) {
@@ -44,6 +59,8 @@ class GridZone {
       latitude: (data['latitude'] ?? -17.8216).toDouble(),
       longitude: (data['longitude'] ?? 31.0492).toDouble(),
       suburbCode: data['suburbCode'] ?? '',
+      accurateVotes: (data['accurateVotes'] ?? 0) as int,
+      inaccurateVotes: (data['inaccurateVotes'] ?? 0) as int,
     );
   }
 
@@ -57,6 +74,8 @@ class GridZone {
       'latitude': latitude,
       'longitude': longitude,
       'suburbCode': suburbCode,
+      'accurateVotes': accurateVotes,
+      'inaccurateVotes': inaccurateVotes,
     };
   }
 
@@ -70,6 +89,8 @@ class GridZone {
       'latitude': latitude,
       'longitude': longitude,
       'suburbCode': suburbCode,
+      'accurateVotes': accurateVotes,
+      'inaccurateVotes': inaccurateVotes,
     };
   }
 

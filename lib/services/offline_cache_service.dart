@@ -45,6 +45,8 @@ class OfflineCacheService {
           latitude: (map['latitude'] ?? -17.8216).toDouble(),
           longitude: (map['longitude'] ?? 31.0492).toDouble(),
           suburbCode: map['suburbCode'] ?? '',
+          accurateVotes: (map['accurateVotes'] ?? 0) as int,
+          inaccurateVotes: (map['inaccurateVotes'] ?? 0) as int,
         );
       }).toList();
     } catch (_) {

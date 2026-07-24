@@ -296,7 +296,12 @@ class HomeScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('WAS THIS ACCURATE?', style: VoltTheme.dataStyle.copyWith(fontSize: 9, color: VoltTheme.textMuted)),
+                Text(
+                  zone.accuracyPercent != null
+                      ? 'WAS THIS ACCURATE? \u2022 ${zone.accuracyPercent!.toStringAsFixed(0)}% (${zone.totalVotes})'
+                      : 'WAS THIS ACCURATE?',
+                  style: VoltTheme.dataStyle.copyWith(fontSize: 9, color: VoltTheme.textMuted),
+                ),
                 Row(
                   children: [
                     _buildVoteButton(context, LucideIcons.thumbsUp, VoltTheme.neonGreen, () => _submitVote(context, zone.id, true)),
